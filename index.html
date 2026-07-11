@@ -824,7 +824,8 @@ async function loadArea(){
     node(around:1300,${HOME.lat},${HOME.lon})[amenity=drinking_water];
     node(around:1300,${HOME.lat},${HOME.lon})[amenity=toilets];
     way(around:1300,${HOME.lat},${HOME.lon})[amenity=toilets];
-    way(around:1300,${HOME.lat},${HOME.lon})["dog"~"^(unleashed|off_leash|designated)$"];
+    way(around:3000,${HOME.lat},${HOME.lon})[leisure=dog_park];
+    way(around:3000,${HOME.lat},${HOME.lon})["dog"~"^(unleashed|off_leash|designated)$"];
     node(around:1300,${HOME.lat},${HOME.lon})[amenity~"^(cafe|restaurant|fast_food|bar|pub)$"];
     node(around:1300,${HOME.lat},${HOME.lon})[shop];
     node(around:1300,${HOME.lat},${HOME.lon})[highway=bus_stop];
@@ -874,7 +875,7 @@ async function loadArea(){
     oel.innerHTML = `🐕‍🦺 最近的 off-leash：<b>${nearest.name}</b> · ${d<1000?Math.round(d)+" m":(d/1000).toFixed(1)+" km"}　<span style="color:#8a7a64">点我看位置</span>`;
     oel.onclick = ()=> map.flyTo({center:ll(nearest.c), zoom:16.2});
   }else{
-    oel.textContent = "🐕‍🦺 附近 1.3km 内没有标注的 off-leash 区域";
+    oel.textContent = "🐕‍🦺 附近 3km 内没有标注的 off-leash 区域";
   }
   oel.style.display = "block";
   await buildRoutes();
