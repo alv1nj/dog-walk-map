@@ -1,0 +1,7 @@
+name = "liugouba"
+compatibility_date = "2026-07-01"
+pages_build_output_dir = "."
+
+[[kv_namespaces]]
+binding = "LGB_KV"
+id = "7b7b1d4e3d3a4172a29eed1435596bff"

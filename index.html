@@ -158,6 +158,49 @@ header{display:flex;align-items:center;justify-content:space-between;padding:6px
 .skeleton .dots::after{content:"";animation:dots 1.2s steps(4) infinite}
 @keyframes dots{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}}
 
+/* header round button */
+.hbtn{border:none;background:#fff;width:38px;height:38px;border-radius:999px;font-size:18px;
+  box-shadow:var(--shadow);cursor:pointer;flex-shrink:0}
+
+/* alert banner & best window */
+#alertBanner{display:none;background:linear-gradient(135deg,#ffe3dc,#ffd2c8);border:2px solid #f3a08c;
+  border-radius:16px;padding:12px 14px;margin-bottom:12px;font-weight:800;font-size:14.5px;color:#a33c22;line-height:1.5}
+#bestWin{margin-top:12px;background:#eef7ff;border:2px solid #cfe6f8;border-radius:16px;
+  padding:10px 14px;font-size:13.5px;font-weight:700;line-height:1.8}
+
+/* modals */
+.modal{position:fixed;inset:0;z-index:1600;background:rgba(74,59,42,.35);display:none;align-items:flex-end;justify-content:center}
+.modal.open{display:flex}
+.sheet{background:var(--cream);width:100%;max-width:520px;border-radius:26px 26px 0 0;
+  padding:20px 18px calc(22px + env(safe-area-inset-bottom));max-height:84vh;overflow:auto}
+.sheet h3{font-size:18px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center}
+.sheet .x{border:none;background:#fff;border-radius:999px;width:34px;height:34px;cursor:pointer;font-weight:800;font-size:14px;box-shadow:var(--shadow)}
+.seg{display:flex;gap:6px;margin:6px 0 4px}
+.seg div{flex:1;text-align:center;padding:9px 0;border-radius:14px;border:2px solid #f0e6d2;background:#fff;
+  font-size:13px;font-weight:700;cursor:pointer;transition:all .15s}
+.seg div.on{background:var(--sun);border-color:#eec25a}
+.fld{font-size:13px;font-weight:700;color:var(--ink2);margin-top:12px}
+input.txt{width:100%;padding:11px 14px;border-radius:14px;border:2px solid #f0e6d2;font-family:inherit;
+  font-size:15px;margin-top:6px;background:#fff;outline:none}
+input.txt:focus{border-color:var(--sun)}
+.btn{border:none;font-family:inherit;cursor:pointer;border-radius:999px;padding:12px 16px;
+  font-size:14.5px;font-weight:800;width:100%;margin-top:10px;letter-spacing:1px}
+.btn.p{background:linear-gradient(135deg,#6cc551,#4aad3e);color:#fff;box-shadow:0 4px 0 #3a8a31}
+.btn.p:active{transform:translateY(2px);box-shadow:0 2px 0 #3a8a31}
+.btn.s{background:#fff;border:2px solid #f0e6d2;color:var(--ink)}
+.btn.d{background:#fff;border:2px solid #f3b8a9;color:#c0563e}
+.btnRow{display:flex;gap:8px}
+.btnRow .btn{margin-top:10px}
+.codeBox{font-size:25px;font-weight:800;letter-spacing:3px;text-align:center;background:#fff;
+  border:2px dashed #eec25a;border-radius:16px;padding:14px;margin:10px 0 4px;user-select:all}
+.hrow{display:flex;align-items:center;gap:10px;background:#fff;border:2px solid #f0e6d2;border-radius:16px;
+  padding:10px 12px;margin-bottom:8px;font-size:13.5px}
+.hrow .hi{flex:1;min-width:0}
+.hrow b{font-size:14px}
+.hrow .sm{color:var(--ink2);font-size:12px;margin-top:1px}
+.hrow button{border:none;background:#faf6ee;border-radius:10px;padding:7px 9px;font-family:inherit;
+  font-weight:700;cursor:pointer;font-size:12.5px;white-space:nowrap}
+
 /* dog marker */
 .dogMarker{font-size:30px;line-height:1;filter:drop-shadow(0 2px 2px rgba(0,0,0,.3));transition:transform .3s}
 .poiIcon{font-size:16px;line-height:1;text-shadow:0 1px 2px rgba(255,255,255,.9)}
@@ -176,13 +219,17 @@ header{display:flex;align-items:center;justify-content:space-between;padding:6px
 <div id="app">
   <header>
     <div class="logo"><span class="paw">🐕</span><h1>遛<span>狗</span>吧</h1></div>
-    <div class="clock"><div class="t" id="clockT">--:--</div><div class="d" id="clockD"></div></div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <button class="hbtn" id="profBtn" title="狗狗档案">🐶</button>
+      <div class="clock"><div class="t" id="clockT">--:--</div><div class="d" id="clockD"></div></div>
+    </div>
   </header>
 
   <div class="card" id="weatherCard">
     <h2>🌤 现在的天气</h2>
     <div class="skeleton" id="wxLoading">看看天上有没有云<span class="dots"></span></div>
     <div id="wxBody" style="display:none">
+      <div id="alertBanner"></div>
       <div class="now">
         <div id="wxEmoji">☀️</div>
         <div>
@@ -192,6 +239,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding:6px
       </div>
       <div class="chips" id="wxChips"></div>
       <div class="timeline" id="rainTl"></div>
+      <div id="bestWin" style="display:none"></div>
       <div class="advice">
         <div class="dog" id="advDog">🐶</div>
         <div class="txt"><b id="advTitle">…</b><span id="advWhy"></span></div>
@@ -221,9 +269,54 @@ header{display:flex;align-items:center;justify-content:space-between;padding:6px
       <div class="tile"><div class="v" id="stTime">0 分钟</div><div class="l">⏱ 时间</div></div>
       <div class="tile"><div class="v" id="stCnt">0 次</div><div class="l">🦴 次数</div></div>
     </div>
+    <div class="btnRow">
+      <button class="btn s" id="histBtn">📖 遛狗日记</button>
+      <button class="btn s" id="syncBtn">☁️ 云同步</button>
+    </div>
     <button id="exploreBtn">🗺 小狗没去过的地方</button>
+    <div class="mini" id="syncLine">☁️ 未开启云同步</div>
   </div>
 </div>
+
+<div class="modal" id="profileModal"><div class="sheet">
+  <h3>🐶 狗狗小档案 <button class="x" data-close>✕</button></h3>
+  <div class="fld">名字</div>
+  <input class="txt" id="pfName" placeholder="毛孩子叫什么呀" maxlength="12">
+  <div class="fld">体型</div>
+  <div class="seg" id="pfSize"><div data-v="small">小型犬</div><div data-v="medium" class="on">中型犬</div><div data-v="large">大型犬</div></div>
+  <div class="fld">毛发</div>
+  <div class="seg" id="pfCoat"><div data-v="short">短毛</div><div data-v="long" class="on">长毛</div><div data-v="double">双层厚毛</div></div>
+  <div class="fld">年龄</div>
+  <div class="seg" id="pfAge"><div data-v="puppy">幼犬</div><div data-v="adult" class="on">成犬</div><div data-v="senior">老年犬</div></div>
+  <button class="btn p" id="pfSave">保存档案</button>
+  <div class="mini">档案用来调整穿衣和防暑建议：短毛小型犬更怕冷，双层厚毛更怕热</div>
+</div></div>
+
+<div class="modal" id="syncModal"><div class="sheet">
+  <h3>☁️ 云同步 <button class="x" data-close>✕</button></h3>
+  <div id="syncOff">
+    <div class="mini" style="text-align:left;margin-bottom:4px">开启后，遛狗记录和狗狗档案会凭「同步码」保存到云端，换手机/电脑输入同一个码就能接着用。同步码就是钥匙，请保管好哦。</div>
+    <button class="btn p" id="syCreate">✨ 创建我的同步码</button>
+    <div class="fld">已有同步码？输入连接：</div>
+    <input class="txt" id="syInput" placeholder="例如 ab3d-ef7k" autocapitalize="none" autocomplete="off">
+    <button class="btn s" id="syConnect">连接并合并数据</button>
+  </div>
+  <div id="syncOn" style="display:none">
+    <div class="mini" style="text-align:left">在另一台设备打开遛狗吧 → 云同步 → 输入这个码：</div>
+    <div class="codeBox" id="syCode"></div>
+    <div class="mini" id="syAt"></div>
+    <button class="btn p" id="syNow">🔄 立即同步</button>
+    <div class="btnRow">
+      <button class="btn s" id="syCopy">复制同步码</button>
+      <button class="btn d" id="syOffBtn">断开同步</button>
+    </div>
+  </div>
+</div></div>
+
+<div class="modal" id="historyModal"><div class="sheet">
+  <h3>📖 遛狗日记 <button class="x" data-close>✕</button></h3>
+  <div id="histList"></div>
+</div></div>
 
 <div id="explorer">
   <div id="exHead">
@@ -249,7 +342,7 @@ const OSRM = "https://routing.openstreetmap.de/routed-foot";
 
 let HOME = null;          // {lat,lon}
 let map, homeMarker, dogMarker;
-let greens = [], bins = [], pois = [];   // overpass features
+let greens = [], bins = [], pois = [], waters = [];   // overpass features
 let routes = [];          // computed routes
 let selIdx = -1;
 let walking = false, watchId = null, walkPath = [], walkDist = 0, walkT0 = 0, walkTimer = null;
@@ -345,6 +438,7 @@ function start(lat, lon){
   HOME = {lat, lon};
   $("splash").classList.add("off");
   initMap(lat, lon, 16);
+  tryResume();     // 有未结束的遛狗就接着遛
   loadWeather();   // parallel
   loadArea();      // parallel: overpass -> routes
 }
@@ -363,13 +457,15 @@ function placeHome(){
 }
 
 /* ================= 3. weather ================= */
+let lastWX = null;
 async function loadWeather(){
   try{
     const u = `https://api.open-meteo.com/v1/forecast?latitude=${HOME.lat}&longitude=${HOME.lon}` +
-      `&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,wind_speed_10m` +
-      `&hourly=precipitation,precipitation_probability,weather_code,soil_moisture_0_to_1cm` +
-      `&past_hours=6&forecast_hours=6&timezone=auto`;
+      `&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,wind_speed_10m,uv_index` +
+      `&hourly=precipitation,precipitation_probability,weather_code,soil_moisture_0_to_1cm,temperature_2m,uv_index,wind_speed_10m` +
+      `&daily=sunrise,sunset&forecast_days=2&past_hours=6&forecast_hours=24&timezone=auto`;
     const d = await (await fetch(u)).json();
+    lastWX = d;
     renderWeather(d);
   }catch(e){
     $("wxLoading").textContent = "天气加载失败了 😿 刷新试试";
@@ -389,12 +485,13 @@ function renderWeather(d){
   const idx = H.time.map(t=>new Date(t).getTime());
   // windows
   let past3=0, past6=0, next3=0, nextProb=0, soil=null;
+  const soonCodes = [c.weather_code];
   idx.forEach((t,i)=>{
     const dh = (t-now)/3600000;
     const pr = H.precipitation[i] ?? 0;
     if(dh>=-3 && dh<0) past3+=pr;
     if(dh>=-6 && dh<0) past6+=pr;
-    if(dh>=0 && dh<3){ next3+=pr; nextProb=Math.max(nextProb, H.precipitation_probability?.[i] ?? 0); }
+    if(dh>=0 && dh<3){ next3+=pr; nextProb=Math.max(nextProb, H.precipitation_probability?.[i] ?? 0); soonCodes.push(H.weather_code[i]); }
     if(dh>=-1 && dh<=0 && H.soil_moisture_0_to_1cm) soil = H.soil_moisture_0_to_1cm[i];
   });
 
@@ -416,7 +513,28 @@ function renderWeather(d){
   const damp = !wet && (past6>0.2 || (soil!==null && soil>0.32));
   chips.push(wet ? ["🐾 地面是湿的，回家记得擦脚脚","wet"] :
             damp ? ["🐾 地面可能有点潮","wet"] : ["🐾 地面干爽","dry"]);
+  // UV & paw-burn
+  const uv = c.uv_index ?? 0;
+  const pawBurn = c.is_day===1 && c.temperature_2m>=25 && c.weather_code<=2;
+  if(pawBurn) chips.push(["🔥 路面可能烫爪！走草地和阴凉","rain"]);
+  if(uv>=6) chips.push([`☀️ 紫外线很强 (UV ${Math.round(uv)})`,"rain"]);
+  else if(uv>=3) chips.push([`😎 紫外线中等 (UV ${Math.round(uv)})`,"wet"]);
   $("wxChips").innerHTML = chips.map(([t,k])=>`<div class="chip ${k}">${t}</div>`).join("");
+
+  // severe weather red card
+  const dn = dogName();
+  let danger = null;
+  if(soonCodes.some(x=>x>=95)) danger = "⛈ 附近有雷暴！今天先别带"+dn+"出门，等天气过去再遛";
+  else if(c.wind_speed_10m>=45) danger = "💨 风太大了！树枝乱飞很危险，建议改时间再遛";
+  else if(c.apparent_temperature>=38) danger = "🥵 极端高温！千万别出门，路面会烫伤肉垫，等傍晚凉快再说";
+  else if(c.apparent_temperature<=-5) danger = "🥶 极端严寒！今天在家玩吧，硬要出门也要速战速决";
+  else if(c.precipitation>=4) danger = "🌧 雨下得很大，先窝在家里吧";
+  const ab = $("alertBanner");
+  if(danger){ ab.textContent = danger + " 🚫"; ab.style.display = "block"; }
+  else ab.style.display = "none";
+
+  // best walk windows (next 18h, 06:00-22:00)
+  renderBestWindows(d, idx, now);
 
   // hourly timeline -3h..+3h
   let tl = "";
@@ -430,20 +548,65 @@ function renderWeather(d){
   });
   $("rainTl").innerHTML = tl;
 
-  // clothes advice
-  const a = c.apparent_temperature, windy = c.wind_speed_10m >= 28;
+  // clothes advice (personalized by dog profile)
+  const shift = clothShift();                 // >0 = 更怕冷, <0 = 更怕热
+  const a = c.apparent_temperature - shift;   // 狗狗的"有效体感"
+  const windy = c.wind_speed_10m >= 28;
   const rainy = c.precipitation>0 || next3>0.2 || nextProb>=50;
   let dog="🐶", title="", why="";
-  if(a >= 26){ dog="🥵"; title="太热啦，别穿衣服！"; why="注意随时补水，尽量走阴凉的路，摸摸地面别烫到肉垫。"; }
-  else if(a >= 15){ dog="🐕"; title="不用穿衣服，轻装出发！"; why="温度刚刚好，撒欢儿的好天气。"; }
-  else if(a >= 10){ dog="👕"; title="短毛/小型犬穿件薄衣服"; why="有点微凉，长毛大狗可以不穿。"; }
-  else if(a >= 5){ dog="🧥"; title="建议穿上保暖衣"; why="挺冷的，尤其是小型犬和老年犬要注意保暖。"; }
-  else { dog="🧣"; title="穿厚棉衣！速去速回"; why="非常冷，缩短遛弯时间，注意肉垫防冻。"; }
-  if(rainy){ dog="☔"; title="建议穿雨衣出门！"; why="现在有雨或未来3小时可能下雨，带上雨衣，回家擦干别着凉。"; }
+  if(a >= 26){ dog="🥵"; title=`太热啦，${dn}别穿衣服！`; why="注意随时补水，尽量走阴凉的路，摸摸地面别烫到肉垫。"; }
+  else if(a >= 15){ dog="🐕"; title=`${dn}不用穿衣服，轻装出发！`; why="温度刚刚好，撒欢儿的好天气。"; }
+  else if(a >= 10){ dog="👕"; title=`给${dn}穿件薄衣服`; why="有点微凉，穿件小背心刚刚好。"; }
+  else if(a >= 5){ dog="🧥"; title=`建议给${dn}穿上保暖衣`; why="挺冷的，出门前穿好再走。"; }
+  else { dog="🧣"; title=`给${dn}穿厚棉衣！速去速回`; why="非常冷，缩短遛弯时间，注意肉垫防冻。"; }
+  if(rainy){ dog="☔"; title=`建议给${dn}穿雨衣出门！`; why="现在有雨或未来3小时可能下雨，带上雨衣，回家擦干别着凉。"; }
+  else if(pawBurn){ why += " 出门前用手背贴路面7秒，觉得烫就走草地。"; }
   else if(windy && a < 12){ why += " 今天风大，最好选挡风的衣服。"; }
+  if(shift !== 0) why += `（已按${dn}的小档案调整）`;
   $("advDog").textContent = dog; $("advTitle").textContent = title; $("advWhy").textContent = why;
 
   $("wxLoading").style.display="none"; $("wxBody").style.display="block";
+}
+
+function renderBestWindows(d, idx, now){
+  const H = d.hourly;
+  const days = {};
+  (d.daily?.time||[]).forEach((t,i)=>{
+    days[t] = {sr:new Date(d.daily.sunrise[i]).getTime(), ss:new Date(d.daily.sunset[i]).getTime()};
+  });
+  const cand = [];
+  idx.forEach((t,i)=>{
+    const dh = (t-now)/3600000;
+    if(dh < -0.5 || dh > 18) return;
+    const dt = new Date(t), hr = dt.getHours();
+    if(hr < 6 || hr >= 22) return;
+    let s = 100;
+    s -= (H.precipitation_probability?.[i] ?? 0) * 0.55;
+    s -= (H.precipitation[i] ?? 0) * 18;
+    const T = H.temperature_2m[i];
+    if(T > 23) s -= (T-23)*4.5;
+    if(T < 8)  s -= (8-T)*3;
+    const uvh = H.uv_index?.[i] ?? 0; if(uvh >= 6) s -= (uvh-5)*5;
+    const w = H.wind_speed_10m?.[i] ?? 0; if(w > 25) s -= (w-25)*1.2;
+    const day = days[H.time[i].slice(0,10)];
+    if(day && (t < day.sr || t > day.ss)) s -= 10;   // 天黑扣分
+    cand.push({t, hr, s, day: dt.getDate()});
+  });
+  const wins = [];
+  for(let k=0;k<cand.length-1;k++)
+    if(cand[k+1].t - cand[k].t === 3600000)
+      wins.push({t:cand[k].t, hr:cand[k].hr, day:cand[k].day, s:(cand[k].s+cand[k+1].s)/2});
+  wins.sort((x,y)=>y.s-x.s);
+  const el = $("bestWin");
+  if(!wins.length){ el.style.display="none"; return; }
+  const top = wins[0];
+  const second = wins.find(w=>Math.abs(w.t-top.t) >= 3*3600000);
+  const today = new Date(now).getDate();
+  const stars = s => s>=85?"⭐⭐⭐ 完美":s>=65?"⭐⭐ 不错":s>=45?"⭐ 凑合":"😿 将就";
+  const lbl = w => `${w.day===today?"今天":"明天"} ${String(w.hr).padStart(2,"0")}:00–${String((w.hr+2)%24).padStart(2,"0")}:00`;
+  el.innerHTML = `🕐 最佳遛狗时段：<b>${lbl(top)}</b>　${stars(top.s)}` +
+    (second && second.s>=45 ? `<br><span style="color:var(--ink2)">备选：${lbl(second)}　${stars(second.s)}</span>` : "");
+  el.style.display = "block";
 }
 
 /* ================= 4. overpass area data ================= */
@@ -453,6 +616,7 @@ async function loadArea(){
     way(around:1300,${HOME.lat},${HOME.lon})[leisure~"^(park|garden|dog_park|playground|pitch)$"];
     way(around:1300,${HOME.lat},${HOME.lon})[landuse~"^(grass|meadow|recreation_ground|village_green)$"];
     node(around:1300,${HOME.lat},${HOME.lon})[amenity~"^(waste_basket|waste_disposal)$"];
+    node(around:1300,${HOME.lat},${HOME.lon})[amenity=drinking_water];
     node(around:1300,${HOME.lat},${HOME.lon})[amenity~"^(cafe|restaurant|fast_food|bar|pub)$"];
     node(around:1300,${HOME.lat},${HOME.lon})[shop];
     node(around:1300,${HOME.lat},${HOME.lon})[highway=bus_stop];
@@ -474,12 +638,14 @@ async function loadArea(){
           isPark: /park|garden|dog_park/.test(t.leisure||"")});
       }else if(el.type==="node"){
         if(/waste/.test(t.amenity||"")) bins.push({id:el.id, p:[el.lat,el.lon]});
+        else if(t.amenity==="drinking_water") waters.push({id:el.id, p:[el.lat,el.lon]});
         else pois.push([el.lat,el.lon]);
       }
     }
-    // draw greens & bins
+    // draw greens & bins & water fountains
     greens.forEach(g => L.polygon(g.ring, {color:"#5cb85c",weight:1.5,fillColor:"#8fd67a",fillOpacity:.35}).addTo(map));
     bins.forEach(b => L.marker(b.p, {icon:L.divIcon({className:"poiIcon",html:"🗑",iconSize:[16,16],iconAnchor:[8,8]})}).addTo(map));
+    waters.forEach(w => L.marker(w.p, {icon:L.divIcon({className:"poiIcon",html:"🚰",iconSize:[16,16],iconAnchor:[8,8]})}).addTo(map));
   }
   await buildRoutes();
 }
@@ -502,8 +668,9 @@ function routeCounts(line){
     return false;
   }).length;
   const bn = bins.filter(b => distToPolyline(b.p,line) < 55).length;
+  const wt = waters.filter(w => distToPolyline(w.p,line) < 60).length;
   const poi = pois.filter(p => distToPolyline(p,line) < 80).length;
-  return {lawns, bins:bn, poi};
+  return {lawns, bins:bn, waters:wt, poi};
 }
 function trafficLevel(poi, km){
   const density = poi/Math.max(km,.3);
@@ -562,6 +729,7 @@ async function buildRoutes(){
         <div class="stats">
           <span class="st">🌿 草坪 ×${r.lawns}</span>
           <span class="st">🗑 垃圾桶 ×${r.bins}</span>
+          <span class="st">🚰 ×${r.waters}</span>
           <span class="st">${r.traffic}</span>
         </div>
       </div>
@@ -596,22 +764,58 @@ window.selectRoute = function(i){
 
 $("goBtn").onclick = () => walking ? stopWalk() : startWalk();
 
-function startWalk(){
-  if(selIdx<0) return;
-  walking = true; walkPath = []; walkDist = 0; walkT0 = Date.now(); alerted = new Set();
-  const g = $("goBtn"); g.classList.add("stop"); g.textContent = "🛑 结束遛狗";
+let sessRoute = null, lastSessSave = 0;
+const SKEY = "lgb_active_walk";
+
+function beginTracking(){
   $("walkStats").style.display = "block";
+  $("wsDist").textContent = (walkDist/1000).toFixed(2)+" km";
   walkTimer = setInterval(()=> {
     const s = Math.floor((Date.now()-walkT0)/1000);
     $("wsTime").textContent = `${String(Math.floor(s/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`;
   }, 1000);
-  toast("🎉",`出发！沿着「${routes[selIdx].name}」走吧`,"",3500);
   if(!navigator.geolocation) return toast("😿","没法定位，只能自己认路啦","warn");
   watchId = navigator.geolocation.watchPosition(onPos,
     e=>toast("😿","定位信号丢了…","warn"),
     {enableHighAccuracy:true, maximumAge:2000, timeout:15000});
+}
+function saveSession(){
+  if(!walking) return;
+  try{
+    localStorage.setItem(SKEY, JSON.stringify({t0:walkT0, dist:Math.round(walkDist),
+      path:downsample(walkPath,10), alerted:[...alerted], route:sessRoute}));
+  }catch(e){}
+}
+function startWalk(){
+  if(selIdx<0) return;
+  walking = true; walkPath = []; walkDist = 0; walkT0 = Date.now(); alerted = new Set();
+  sessRoute = {name:routes[selIdx].name, line:downsample(routes[selIdx].line,20)};
+  saveSession();
+  const g = $("goBtn"); g.classList.add("stop"); g.textContent = "🛑 结束遛狗";
+  toast("🎉",`出发！沿着「${routes[selIdx].name}」走吧`,"",3500);
+  beginTracking();
   document.querySelector("#map").scrollIntoView({behavior:"smooth", block:"center"});
 }
+function tryResume(){
+  let s = null;
+  try{ s = JSON.parse(localStorage.getItem(SKEY)); }catch(e){}
+  if(!s || !s.t0 || Date.now()-s.t0 > 12*3600000){ localStorage.removeItem(SKEY); return; }
+  walking = true; walkT0 = s.t0; walkDist = s.dist||0; walkPath = s.path||[];
+  alerted = new Set(s.alerted||[]); sessRoute = s.route||null; selIdx = -1;
+  if(sessRoute?.line) L.polyline(sessRoute.line,{color:"#f0930f",weight:6,opacity:.75,lineCap:"round"}).addTo(map);
+  if(walkPath.length>1) L.polyline(walkPath,{color:"#4c88b8",weight:4,opacity:.55,dashArray:"2 8"}).addTo(map);
+  const g = $("goBtn"); g.style.display = "block"; g.classList.add("stop"); g.textContent = "🛑 结束遛狗";
+  beginTracking();
+  toast("🐕",`欢迎回来！继续遛「${sessRoute?.name||"上次的路线"}」，记录还在哦`,"",5500);
+}
+// 熄屏/切后台回来后，重新拉起 GPS 监听
+document.addEventListener("visibilitychange", ()=>{
+  if(document.visibilityState==="visible" && walking && navigator.geolocation){
+    if(watchId!==null) navigator.geolocation.clearWatch(watchId);
+    watchId = navigator.geolocation.watchPosition(onPos, ()=>{},
+      {enableHighAccuracy:true, maximumAge:2000, timeout:15000});
+  }
+});
 
 function onPos(p){
   const cur = [p.coords.latitude, p.coords.longitude];
@@ -624,12 +828,16 @@ function onPos(p){
     accuracyCircle.setLatLng(cur).setRadius(p.coords.accuracy||15);
   }
   map.panTo(cur, {animate:true});
-  // distance
+  // distance (锁屏漏记的一段按直线补上，超过800m视为定位漂移不计)
   if(walkPath.length){
     const d = dist(walkPath[walkPath.length-1], cur);
-    if(d>3 && d<120){ walkDist += d; walkPath.push(cur); }
+    if(d>3){
+      if(d<800) walkDist += d;
+      walkPath.push(cur);
+    }
   }else walkPath.push(cur);
   $("wsDist").textContent = (walkDist/1000).toFixed(2)+" km";
+  if(Date.now()-lastSessSave > 8000){ lastSessSave = Date.now(); saveSession(); }
 
   // proximity alerts
   bins.forEach(b=>{
@@ -641,6 +849,10 @@ function onPos(p){
     const d = Math.min(dist(cur,g.c), distToPolyline(cur, g.ring));
     if(d < 40){ alerted.add("g"+g.id); toast("🌿",`到「${g.name}」啦，撒欢儿吧！`); }
   });
+  waters.forEach(w=>{
+    if(alerted.has("w"+w.id)) return;
+    if(dist(cur,w.p) < 50){ alerted.add("w"+w.id); toast("🚰",`前面有饮水点，让${dogName()}喝口水吧`,"bin"); }
+  });
 }
 
 function stopWalk(){
@@ -650,9 +862,12 @@ function stopWalk(){
   const min = (Date.now()-walkT0)/60000;
   $("walkStats").style.display = "none";
   const g = $("goBtn"); g.classList.remove("stop");
-  g.textContent = `🐕 出发遛「${routes[selIdx].name}」！`;
-  toast("🏅",`遛完啦！${(walkDist/1000).toFixed(2)} km · ${fmtMin(min)}，狗狗真棒！`,"",7000);
+  if(selIdx>=0) g.textContent = `🐕 出发遛「${routes[selIdx].name}」！`;
+  else g.style.display = "none";
+  toast("🏅",`遛完啦！${(walkDist/1000).toFixed(2)} km · ${fmtMin(min)}，${dogName()}真棒！`,"",7000);
   saveWalk(min);
+  localStorage.removeItem(SKEY);
+  sessRoute = null;
   if(dogMarker){ dogMarker.remove(); dogMarker=null; }
   if(accuracyCircle){ accuracyCircle.remove(); accuracyCircle=null; }
 }
@@ -677,6 +892,7 @@ function saveWalk(min){
     km: Math.round(walkDist/10)/100, path: downsample(walkPath) });
   try{ localStorage.setItem(WKEY, JSON.stringify(walks)); }catch(e){}
   renderStats();
+  scheduleSync();
 }
 function periodStart(p){
   const n = new Date();
@@ -742,8 +958,8 @@ const FogLayer = L.Layer.extend({
     ctx.globalCompositeOperation = "source-over";
   }
 });
-let exMap = null, fog = null;
-$("exploreBtn").onclick = () => {
+let exMap = null, fog = null, exViewLayer = null;
+function openExplorer(focusWalk){
   $("explorer").classList.add("open");
   const pts = visitedPoints();
   if(!exMap){
@@ -754,14 +970,192 @@ $("exploreBtn").onclick = () => {
     if(HOME) L.marker([HOME.lat,HOME.lon],{icon:L.divIcon({className:"dogMarker",html:"🏠",iconSize:[30,30],iconAnchor:[15,15]})}).addTo(exMap);
     fog = new FogLayer(); exMap.addLayer(fog);
   }
+  if(exViewLayer){ exViewLayer.remove(); exViewLayer = null; }
+  if(focusWalk && (focusWalk.path||[]).length > 1){
+    exViewLayer = L.polyline(focusWalk.path,{color:"#ff7a3d",weight:5,opacity:.95,lineCap:"round"}).addTo(exMap);
+  }
   setTimeout(()=>{ exMap.invalidateSize(); fog._draw(); }, 60);
-  if(pts.length){
+  if(focusWalk && (focusWalk.path||[]).length > 1){
+    exMap.fitBounds(L.latLngBounds(focusWalk.path).pad(0.25));
+  }else if(pts.length){
     exMap.fitBounds(L.latLngBounds(pts).pad(0.6));
   }else{
-    toast("🐶","狗狗还没出过门，整个世界都是新的！","warn",5000);
+    toast("🐶",`${dogName()}还没出过门，整个世界都是新的！`,"warn",5000);
   }
-};
+}
+$("exploreBtn").onclick = () => openExplorer();
 $("exClose").onclick = () => $("explorer").classList.remove("open");
+
+/* ================= 9. dog profile ================= */
+const PKEY = "lgb_profile_v1";
+function loadProfile(){
+  try{ return JSON.parse(localStorage.getItem(PKEY)); }catch(e){ return null; }
+}
+function dogName(){ const p = loadProfile(); return (p?.name || "").trim() || "狗狗"; }
+function clothShift(){
+  const p = loadProfile(); if(!p) return 0;
+  return ({small:2, medium:0, large:-1}[p.size] ?? 0) +
+         ({short:3, long:0, double:-4}[p.coat] ?? 0) +
+         ({puppy:2, adult:0, senior:3}[p.age] ?? 0);
+}
+function openModal(id){ $(id).classList.add("open"); }
+document.querySelectorAll(".modal").forEach(m=>{
+  m.addEventListener("click", e=>{
+    if(e.target===m || e.target.hasAttribute("data-close")) m.classList.remove("open");
+  });
+});
+document.querySelectorAll(".seg").forEach(seg=>{
+  seg.addEventListener("click", e=>{
+    const o = e.target.closest("[data-v]"); if(!o) return;
+    seg.querySelectorAll("div").forEach(x=>x.classList.toggle("on", x===o));
+  });
+});
+function segVal(id){ return $(id).querySelector(".on")?.dataset.v; }
+function segSet(id, v){ $(id).querySelectorAll("div").forEach(x=>x.classList.toggle("on", x.dataset.v===v)); }
+$("profBtn").onclick = ()=>{
+  const p = loadProfile() || {};
+  $("pfName").value = p.name || "";
+  segSet("pfSize", p.size || "medium"); segSet("pfCoat", p.coat || "long"); segSet("pfAge", p.age || "adult");
+  openModal("profileModal");
+};
+$("pfSave").onclick = ()=>{
+  const p = {name:$("pfName").value.trim(), size:segVal("pfSize"), coat:segVal("pfCoat"),
+    age:segVal("pfAge"), updatedAt:new Date().toISOString()};
+  localStorage.setItem(PKEY, JSON.stringify(p));
+  $("profileModal").classList.remove("open");
+  toast("🐶",`${dogName()}的档案存好啦！`);
+  if(lastWX) renderWeather(lastWX);   // 重算穿衣建议
+  scheduleSync();
+};
+
+/* ================= 10. history diary ================= */
+const DKEY = "lgb_deleted_v1";
+function loadDeleted(){
+  try{ return JSON.parse(localStorage.getItem(DKEY)) || []; }catch(e){ return []; }
+}
+function renderHistory(){
+  const ws = loadWalks().slice().reverse();
+  $("histList").innerHTML = ws.length ? ws.map(w=>{
+    const d = new Date(w.t0);
+    return `<div class="hrow"><div class="hi">
+      <b>${d.getMonth()+1}月${d.getDate()}日 ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}</b>
+      <div class="sm">🐾 ${w.km.toFixed(2)} km · ⏱ ${fmtMin(w.min)}</div></div>
+      <button data-view="${w.t0}">👀 查看</button><button data-del="${w.t0}">🗑</button></div>`;
+  }).join("") : `<div class="skeleton">还没有记录，快带狗狗出门吧！</div>`;
+}
+$("histBtn").onclick = ()=>{ renderHistory(); openModal("historyModal"); };
+$("histList").addEventListener("click", e=>{
+  const v = e.target.dataset?.view, del = e.target.dataset?.del;
+  if(v){
+    $("historyModal").classList.remove("open");
+    openExplorer(loadWalks().find(w=>w.t0===v));
+  }
+  if(del){
+    if(e.target.dataset.arm){ deleteWalk(del); }
+    else{
+      e.target.dataset.arm = "1"; e.target.textContent = "确认删除?";
+      setTimeout(()=>{ delete e.target.dataset.arm; e.target.textContent = "🗑"; }, 2500);
+    }
+  }
+});
+function deleteWalk(t0){
+  localStorage.setItem(WKEY, JSON.stringify(loadWalks().filter(w=>w.t0!==t0)));
+  const del = loadDeleted(); del.push(t0);
+  localStorage.setItem(DKEY, JSON.stringify(del));
+  renderStats(); renderHistory(); scheduleSync();
+  toast("🗑","这条记录删掉啦");
+}
+
+/* ================= 11. cloud sync (Cloudflare KV) ================= */
+const CKEY = "lgb_sync_code", SYNC_API = "/api/sync/";
+function syncCode(){ return localStorage.getItem(CKEY); }
+function localData(){ return {walks:loadWalks(), deleted:loadDeleted(), profile:loadProfile()}; }
+function mergeData(a, b){
+  if(!b) b = {};
+  const del = new Set([...(a.deleted||[]), ...(b.deleted||[])]);
+  const m = new Map();
+  [...(a.walks||[]), ...(b.walks||[])].forEach(w=>{ if(w?.t0 && !del.has(w.t0)) m.set(w.t0, w); });
+  const walks = [...m.values()].sort((x,y)=> x.t0<y.t0 ? -1 : 1);
+  const pa = a.profile, pb = b.profile;
+  const profile = !pb ? pa : !pa ? pb : ((pa.updatedAt||"") > (pb.updatedAt||"") ? pa : pb);
+  return {v:1, updatedAt:new Date().toISOString(), walks, deleted:[...del].slice(-500), profile};
+}
+function setSyncStatus(msg){
+  const code = syncCode();
+  $("syncLine").textContent = msg ? "☁️ "+msg :
+    code ? `☁️ 云同步已开启 · 同步码 ${code}` : "☁️ 未开启云同步（换设备记录不跟随）";
+}
+async function syncNow(silent){
+  const code = syncCode(); if(!code) return;
+  setSyncStatus("同步中…");
+  try{
+    let remote = null;
+    const r = await fetch(SYNC_API+code, {cache:"no-store"});
+    if(r.ok) remote = await r.json();
+    const merged = mergeData(localData(), remote);
+    localStorage.setItem(WKEY, JSON.stringify(merged.walks));
+    localStorage.setItem(DKEY, JSON.stringify(merged.deleted));
+    if(merged.profile) localStorage.setItem(PKEY, JSON.stringify(merged.profile));
+    const w = await fetch(SYNC_API+code, {method:"PUT", body:JSON.stringify(merged)});
+    if(!w.ok) throw new Error("put failed");
+    localStorage.setItem("lgb_sync_at", String(Date.now()));
+    setSyncStatus(); renderStats();
+    if(fog) fog._draw();
+    if(!silent) toast("☁️","同步完成！");
+  }catch(e){
+    setSyncStatus("同步失败了，稍后会再试");
+    if(!silent) toast("😿","同步失败了，检查一下网络","warn");
+  }
+}
+let syncTimer = null;
+function scheduleSync(){
+  if(!syncCode()) return;
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(()=>syncNow(true), 4000);
+}
+function refreshSyncModal(){
+  const code = syncCode();
+  $("syncOff").style.display = code ? "none" : "block";
+  $("syncOn").style.display = code ? "block" : "none";
+  if(code){
+    $("syCode").textContent = code;
+    const at = +localStorage.getItem("lgb_sync_at") || 0;
+    $("syAt").textContent = at ? `上次同步：${new Date(at).toLocaleString("zh-CN")}` : "还没同步过";
+  }
+}
+$("syncBtn").onclick = ()=>{ refreshSyncModal(); openModal("syncModal"); };
+$("syCreate").onclick = async ()=>{
+  const A = "abcdefghjkmnpqrstuvwxyz23456789";
+  let c = ""; crypto.getRandomValues(new Uint8Array(8)).forEach(b=> c += A[b%A.length]);
+  const code = c.slice(0,4)+"-"+c.slice(4);
+  localStorage.setItem(CKEY, code);
+  refreshSyncModal(); setSyncStatus();
+  await syncNow(false);
+  refreshSyncModal();
+};
+$("syConnect").onclick = async ()=>{
+  const code = $("syInput").value.trim().toLowerCase();
+  if(!/^[a-z0-9-]{6,20}$/.test(code)) return toast("🤔","同步码格式不对，再看看？","warn");
+  const r = await fetch(SYNC_API+code, {cache:"no-store"}).catch(()=>null);
+  if(!r || r.status===404) return toast("🤔","没找到这个同步码，检查一下拼写","warn");
+  if(!r.ok) return toast("😿","连接失败了，稍后再试","warn");
+  localStorage.setItem(CKEY, code);
+  await syncNow(false);
+  refreshSyncModal(); setSyncStatus();
+  if(lastWX) renderWeather(lastWX);
+  toast("🎉","连接成功，数据合并好啦！");
+};
+$("syNow").onclick = async ()=>{ await syncNow(false); refreshSyncModal(); };
+$("syCopy").onclick = ()=>{
+  navigator.clipboard?.writeText(syncCode()).then(()=>toast("📋","同步码复制好了"));
+};
+$("syOffBtn").onclick = ()=>{
+  localStorage.removeItem(CKEY);
+  refreshSyncModal(); setSyncStatus();
+  toast("👋","已断开云同步，本机记录还在");
+};
+setSyncStatus();
+if(syncCode()) syncNow(true);   // 打开时先拉一次云端数据
 
 /* go */
 locate();
