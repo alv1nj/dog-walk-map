@@ -155,8 +155,12 @@ header{display:flex;align-items:center;justify-content:space-between;padding:6px
 #exMap{flex:1;z-index:1}
 #exLegend{padding:10px 14px calc(12px + env(safe-area-inset-bottom));font-size:12px;color:var(--ink2);text-align:center;line-height:1.6}
 #nearBar{display:none;position:absolute;left:50%;transform:translateX(-50%);bottom:118px;z-index:10;
-  background:#fff;border:2.5px solid var(--grass);border-radius:999px;padding:8px 16px;
-  font-size:13.5px;font-weight:800;white-space:nowrap;box-shadow:0 6px 16px rgba(0,0,0,.15)}
+  background:#fff;border:2.5px solid var(--grass);border-radius:20px;padding:8px 16px;
+  font-size:13px;font-weight:800;white-space:normal;max-width:92vw;text-align:center;
+  line-height:1.6;box-shadow:0 6px 16px rgba(0,0,0,.15)}
+#offLeashLine{display:none;background:#eaf7df;border:2px solid #cdeec0;border-radius:14px;
+  padding:9px 12px;font-size:13px;font-weight:700;margin:2px 0 10px;cursor:pointer}
+#offLeashLine b{color:#3a8a31}
 #freeBtn{width:100%;margin-top:4px;border:none;font-family:inherit;cursor:pointer;
   background:linear-gradient(135deg,#67c3ec,#3f9fd8);color:#fff;font-size:15px;font-weight:800;
   letter-spacing:1px;border-radius:999px;padding:13px;box-shadow:0 5px 0 #2f7eb0}
@@ -270,6 +274,7 @@ input.txt:focus{border-color:var(--sun)}
     <h2>🦴 推荐遛狗路线 <span style="margin-left:auto;font-size:12px;color:#b8ab92;font-weight:600" id="routeHint">点一条试试</span></h2>
     <div class="skeleton" id="rtLoading">正在闻附近的草坪和垃圾桶<span class="dots"></span></div>
     <div id="routeList"></div>
+    <div id="offLeashLine"></div>
     <button id="freeBtn">🧭 不走路线，自由探索去！</button>
   </div>
 
@@ -819,6 +824,7 @@ async function loadArea(){
     node(around:1300,${HOME.lat},${HOME.lon})[amenity=drinking_water];
     node(around:1300,${HOME.lat},${HOME.lon})[amenity=toilets];
     way(around:1300,${HOME.lat},${HOME.lon})[amenity=toilets];
+    way(around:1300,${HOME.lat},${HOME.lon})["dog"~"^(unleashed|off_leash|designated)$"];
     node(around:1300,${HOME.lat},${HOME.lon})[amenity~"^(cafe|restaurant|fast_food|bar|pub)$"];
     node(around:1300,${HOME.lat},${HOME.lon})[shop];
     node(around:1300,${HOME.lat},${HOME.lon})[highway=bus_stop];
@@ -837,8 +843,12 @@ async function loadArea(){
       if(el.type==="way" && el.geometry){
         const ring = el.geometry.map(g=>[g.lat,g.lon]);
         if(t.amenity==="toilets") toilets.push({id:el.id, p:centroid(ring)});
-        else greens.push({id:el.id, ring, c:centroid(ring), name:t.name || (t.leisure==="dog_park"?"狗狗公园":"草坪"),
-          isPark: /park|garden|dog_park/.test(t.leisure||"")});
+        else{
+          const offLeash = t.leisure==="dog_park" || /unleashed|off_leash|designated/.test(t.dog||"");
+          greens.push({id:el.id, ring, c:centroid(ring),
+            name:t.name || (offLeash?"Off-leash 区域":"草坪"),
+            isPark: offLeash || /park|garden|dog_park/.test(t.leisure||""), offLeash});
+        }
       }else if(el.type==="node"){
         if(/waste/.test(t.amenity||"")) bins.push({id:el.id, p:[el.lat,el.lon]});
         else if(t.amenity==="drinking_water") waters.push({id:el.id, p:[el.lat,el.lon]});
@@ -853,6 +863,20 @@ async function loadArea(){
   bins.forEach(b => emojiMarker(map, b.p, "🗑"));
   waters.forEach(w => emojiMarker(map, w.p, "🚰"));
   toilets.forEach(t => emojiMarker(map, t.p, "🚻"));
+  // 最近的 off-leash 公园
+  const off = greens.filter(g=>g.offLeash);
+  const oel = $("offLeashLine");
+  if(off.length){
+    off.forEach(g => emojiMarker(map, g.c, "🐕‍🦺"));
+    const home = [HOME.lat, HOME.lon];
+    const nearest = off.reduce((a,b)=> dist(home,a.c) <= dist(home,b.c) ? a : b);
+    const d = dist(home, nearest.c);
+    oel.innerHTML = `🐕‍🦺 最近的 off-leash：<b>${nearest.name}</b> · ${d<1000?Math.round(d)+" m":(d/1000).toFixed(1)+" km"}　<span style="color:#8a7a64">点我看位置</span>`;
+    oel.onclick = ()=> map.flyTo({center:ll(nearest.c), zoom:16.2});
+  }else{
+    oel.textContent = "🐕‍🦺 附近 1.3km 内没有标注的 off-leash 区域";
+  }
+  oel.style.display = "block";
   await buildRoutes();
 }
 
@@ -1025,9 +1049,14 @@ function updateNearBar(cur){
   const f = d => d===Infinity ? "—" : d<45 ? "就在旁边!" : d<1000 ? Math.round(d)+"m" : (d/1000).toFixed(1)+"km";
   const db = nearestOf(cur, bins, b=>b.p), dw = nearestOf(cur, waters, w=>w.p);
   const dt = nearestOf(cur, toilets, t=>t.p);
-  let dg = Infinity;
-  for(const g of greens){ const d = Math.min(dist(cur,g.c), distToPolyline(cur,g.ring)); if(d<dg) dg = d; }
-  el.innerHTML = `🗑 ${f(db)} · 🚰 ${f(dw)} · 🌿 ${f(dg)} · 🚻 ${f(dt)}`;
+  let dg = Infinity, doff = Infinity;
+  for(const g of greens){
+    const d = Math.min(dist(cur,g.c), distToPolyline(cur,g.ring));
+    if(d<dg) dg = d;
+    if(g.offLeash && d<doff) doff = d;
+  }
+  el.innerHTML = `🗑 ${f(db)} · 🚰 ${f(dw)} · 🌿 ${f(dg)} · 🚻 ${f(dt)}` +
+    (doff!==Infinity ? ` · 🐕‍🦺 ${f(doff)}` : "");
   el.style.display = "block";
 }
 function tryResume(){
@@ -1238,6 +1267,7 @@ function openExplorer(focusWalk){
       bins.forEach(b => emojiMarker(exMap, b.p, "🗑"));
       waters.forEach(w => emojiMarker(exMap, w.p, "🚰"));
       toilets.forEach(t => emojiMarker(exMap, t.p, "🚻"));
+      greens.filter(g=>g.offLeash).forEach(g => emojiMarker(exMap, g.c, "🐕‍🦺"));
     }
   });
   if(focus){
