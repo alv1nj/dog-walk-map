@@ -1,0 +1,13 @@
+{
+  "name": "遛狗吧",
+  "short_name": "遛狗吧",
+  "description": "看天气、选路线、找草坪和垃圾桶的可爱遛狗助手",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#fff8ec",
+  "theme_color": "#ffd66b",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "apple-touch-icon.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

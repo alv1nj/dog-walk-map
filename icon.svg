@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="115" fill="#ffd66b"/>
+  <!-- ears -->
+  <ellipse cx="128" cy="185" rx="58" ry="92" fill="#b07b4f" transform="rotate(18 128 185)"/>
+  <ellipse cx="384" cy="185" rx="58" ry="92" fill="#b07b4f" transform="rotate(-18 384 185)"/>
+  <!-- head -->
+  <circle cx="256" cy="270" r="150" fill="#e8b97e"/>
+  <!-- muzzle -->
+  <ellipse cx="256" cy="330" rx="86" ry="66" fill="#fff3dd"/>
+  <!-- eyes -->
+  <circle cx="203" cy="245" r="18" fill="#4a3b2a"/>
+  <circle cx="309" cy="245" r="18" fill="#4a3b2a"/>
+  <circle cx="209" cy="239" r="6" fill="#fff"/>
+  <circle cx="315" cy="239" r="6" fill="#fff"/>
+  <!-- nose -->
+  <ellipse cx="256" cy="308" rx="26" ry="20" fill="#4a3b2a"/>
+  <!-- mouth -->
+  <path d="M256 326 q0 26 -30 26 M256 326 q0 26 30 26" stroke="#4a3b2a" stroke-width="10" fill="none" stroke-linecap="round"/>
+  <!-- tongue -->
+  <path d="M238 352 q18 34 36 0 z" fill="#ff8fa3"/>
+  <!-- blush -->
+  <ellipse cx="160" cy="295" rx="20" ry="12" fill="#ffb0a0" opacity=".7"/>
+  <ellipse cx="352" cy="295" rx="20" ry="12" fill="#ffb0a0" opacity=".7"/>
+  <!-- paw -->
+  <g fill="#4a3b2a" opacity=".9">
+    <circle cx="420" cy="425" r="20"/>
+    <circle cx="393" cy="398" r="9"/><circle cx="414" cy="390" r="9"/><circle cx="436" cy="393" r="9"/><circle cx="451" cy="410" r="9"/>
+  </g>
+</svg>

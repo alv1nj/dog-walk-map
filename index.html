@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>遛狗吧 🐶</title>
+<meta name="description" content="遛狗吧——看天气、选路线、找草坪和垃圾桶的可爱遛狗助手">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#ffd66b">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+:root{
+  --cream:#fff8ec; --card:#ffffff; --ink:#4a3b2a; --ink2:#8a7a64;
+  --sun:#ffd66b; --peach:#ffb37e; --grass:#8fd67a; --grassd:#5cb85c;
+  --sky:#8ecff2; --pink:#ffa7c4; --bin:#b9a0e8;
+  --r:22px; --shadow:0 6px 0 rgba(74,59,42,.10);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{
+  font-family:"ui-rounded","SF Pro Rounded","PingFang SC","Hiragino Sans GB","Varela Round","Comic Sans MS",sans-serif;
+  background:linear-gradient(180deg,#ffefc8 0%,#fff8ec 30%,#eaf7e4 100%);
+  color:var(--ink); overflow-x:hidden;
+}
+#app{max-width:520px;margin:0 auto;padding:14px 14px 90px;position:relative}
+
+/* ---------- header ---------- */
+header{display:flex;align-items:center;justify-content:space-between;padding:6px 4px 12px}
+.logo{display:flex;align-items:center;gap:10px}
+.logo .paw{font-size:34px;filter:drop-shadow(0 3px 0 rgba(74,59,42,.15));animation:bob 2.4s ease-in-out infinite}
+@keyframes bob{0%,100%{transform:translateY(0) rotate(-4deg)}50%{transform:translateY(-4px) rotate(4deg)}}
+.logo h1{font-size:26px;letter-spacing:2px}
+.logo h1 span{color:#f0930f}
+.clock{text-align:right;line-height:1.25}
+.clock .t{font-size:20px;font-weight:700}
+.clock .d{font-size:12px;color:var(--ink2)}
+
+/* ---------- cards ---------- */
+.card{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);
+  border:2px solid rgba(74,59,42,.08);padding:16px;margin-bottom:14px;position:relative;overflow:hidden}
+.card h2{font-size:15px;color:var(--ink2);letter-spacing:1px;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+
+/* weather */
+#weatherCard .now{display:flex;align-items:center;gap:14px}
+#wxEmoji{font-size:56px;line-height:1;filter:drop-shadow(0 3px 0 rgba(74,59,42,.12))}
+.temp{font-size:40px;font-weight:800}
+.temp small{font-size:16px;font-weight:600;color:var(--ink2)}
+.wxMeta{font-size:13px;color:var(--ink2);line-height:1.6}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.chip{background:#fff3d6;border:2px solid #ffe1a1;border-radius:999px;padding:5px 12px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:5px}
+.chip.wet{background:#e3f2fb;border-color:#bfe3f7}
+.chip.dry{background:#eef9e8;border-color:#cdeec0}
+.chip.rain{background:#e9e4fa;border-color:#d3c8f3}
+
+/* rain timeline */
+.timeline{display:flex;gap:5px;margin-top:14px}
+.tl{flex:1;text-align:center;background:#faf6ee;border-radius:14px;padding:8px 2px 6px;border:2px solid transparent}
+.tl.now{border-color:var(--sun);background:#fff6dd}
+.tl .h{font-size:10px;color:var(--ink2)}
+.tl .e{font-size:18px;margin:2px 0}
+.tl .p{font-size:10px;font-weight:700;color:#4c88b8}
+
+/* clothes advice */
+.advice{margin-top:14px;display:flex;gap:12px;align-items:center;background:linear-gradient(135deg,#fff3d6,#ffe8f0);
+  border-radius:18px;padding:12px 14px;border:2px dashed #ffca6e}
+.advice .dog{font-size:40px}
+.advice .txt{flex:1}
+.advice .txt b{font-size:16px;display:block;margin-bottom:2px}
+.advice .txt span{font-size:12.5px;color:var(--ink2);line-height:1.45;display:block}
+
+/* routes */
+.route{display:flex;align-items:center;gap:12px;background:#fdfaf3;border:2.5px solid #f0e6d2;
+  border-radius:18px;padding:12px;margin-bottom:10px;cursor:pointer;transition:all .18s}
+.route:active{transform:scale(.98)}
+.route.sel{border-color:var(--grassd);background:#f0fae9;box-shadow:0 4px 0 rgba(92,184,92,.25)}
+.route .ic{width:46px;height:46px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0}
+.route .info{flex:1;min-width:0}
+.route .nm{font-weight:800;font-size:15px}
+.route .dm{font-size:12px;color:var(--ink2);margin-top:1px}
+.route .stats{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap}
+.route .st{font-size:12px;background:#fff;border:1.5px solid #eee3cd;border-radius:999px;padding:2px 9px;font-weight:700}
+.route .go{font-size:22px;color:#c9bda6}
+.route.sel .go{color:var(--grassd)}
+
+/* map */
+#map{height:340px;border-radius:var(--r);box-shadow:var(--shadow);border:3px solid #fff;z-index:1}
+.leaflet-container{font-family:inherit;background:#e8f2e2}
+
+/* big action button */
+#actionBar{position:fixed;left:0;right:0;bottom:0;z-index:1000;pointer-events:none;
+  display:flex;justify-content:center;padding:0 16px calc(14px + env(safe-area-inset-bottom))}
+#goBtn{pointer-events:auto;display:none;width:100%;max-width:488px;border:none;border-radius:999px;
+  padding:16px;font-size:18px;font-weight:800;font-family:inherit;letter-spacing:2px;color:#fff;cursor:pointer;
+  background:linear-gradient(135deg,#6cc551,#4aad3e);box-shadow:0 6px 0 #3a8a31,0 10px 24px rgba(0,0,0,.18)}
+#goBtn:active{transform:translateY(3px);box-shadow:0 3px 0 #3a8a31}
+#goBtn.stop{background:linear-gradient(135deg,#ff8a75,#f4634a);box-shadow:0 6px 0 #c94a35,0 10px 24px rgba(0,0,0,.18)}
+#goBtn.stop:active{box-shadow:0 3px 0 #c94a35}
+
+/* walking stats bar */
+#walkStats{display:none;position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:1000;
+  background:#fff;border:2.5px solid var(--sun);border-radius:999px;box-shadow:0 6px 16px rgba(0,0,0,.15);
+  padding:8px 18px;font-size:14px;font-weight:800;white-space:nowrap}
+#walkStats span{margin:0 6px}
+
+/* toast */
+#toastWrap{position:fixed;top:64px;left:0;right:0;z-index:1200;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none}
+.toast{background:#fff;border:3px solid var(--grass);border-radius:20px;padding:12px 20px;font-size:16px;font-weight:800;
+  box-shadow:0 8px 24px rgba(0,0,0,.18);display:flex;align-items:center;gap:10px;
+  animation:pop .35s cubic-bezier(.2,1.6,.4,1) both;max-width:88vw}
+.toast .be{font-size:26px}
+.toast.bin{border-color:var(--bin)}
+.toast.warn{border-color:var(--peach)}
+@keyframes pop{from{transform:scale(.5) translateY(-16px);opacity:0}to{transform:scale(1) translateY(0);opacity:1}}
+.toast.hide{animation:fade .4s both}
+@keyframes fade{to{opacity:0;transform:translateY(-12px)}}
+
+/* loading / error */
+#splash{position:fixed;inset:0;background:linear-gradient(180deg,#ffefc8,#eaf7e4);z-index:2000;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;transition:opacity .5s}
+#splash.off{opacity:0;pointer-events:none}
+#splash .dog{font-size:74px;animation:bob 1.6s ease-in-out infinite}
+#splash .msg{font-size:15px;font-weight:700;color:var(--ink2)}
+#splash .err{display:none;font-size:13px;color:#c0563e;max-width:280px;text-align:center;line-height:1.6}
+#splash button{display:none;border:none;font-family:inherit;background:var(--sun);border-radius:999px;
+  padding:10px 26px;font-size:15px;font-weight:800;color:var(--ink);cursor:pointer;box-shadow:0 4px 0 #e0af3c}
+
+.mini{font-size:11.5px;color:var(--ink2);text-align:center;margin-top:4px;line-height:1.7}
+.skeleton{color:var(--ink2);font-size:13px;text-align:center;padding:14px 0}
+.skeleton .dots::after{content:"";animation:dots 1.2s steps(4) infinite}
+@keyframes dots{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}}
+
+/* dog marker */
+.dogMarker{font-size:30px;line-height:1;filter:drop-shadow(0 2px 2px rgba(0,0,0,.3));transition:transform .3s}
+.poiIcon{font-size:16px;line-height:1;text-shadow:0 1px 2px rgba(255,255,255,.9)}
+</style>
+</head>
+<body>
+
+<div id="splash">
+  <div class="dog">🐶</div>
+  <div class="msg" id="splashMsg">正在找你在哪儿…</div>
+  <div class="err" id="splashErr"></div>
+  <button id="retryBtn">重试定位</button>
+  <button id="pickBtn">在地图上点选位置</button>
+</div>
+
+<div id="app">
+  <header>
+    <div class="logo"><span class="paw">🐕</span><h1>遛<span>狗</span>吧</h1></div>
+    <div class="clock"><div class="t" id="clockT">--:--</div><div class="d" id="clockD"></div></div>
+  </header>
+
+  <div class="card" id="weatherCard">
+    <h2>🌤 现在的天气</h2>
+    <div class="skeleton" id="wxLoading">看看天上有没有云<span class="dots"></span></div>
+    <div id="wxBody" style="display:none">
+      <div class="now">
+        <div id="wxEmoji">☀️</div>
+        <div>
+          <div class="temp"><span id="wxTemp">--</span>°<small id="wxFeel"></small></div>
+          <div class="wxMeta" id="wxDesc"></div>
+        </div>
+      </div>
+      <div class="chips" id="wxChips"></div>
+      <div class="timeline" id="rainTl"></div>
+      <div class="advice">
+        <div class="dog" id="advDog">🐶</div>
+        <div class="txt"><b id="advTitle">…</b><span id="advWhy"></span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>🦴 推荐遛狗路线 <span style="margin-left:auto;font-size:12px;color:#b8ab92;font-weight:600" id="routeHint">点一条试试</span></h2>
+    <div class="skeleton" id="rtLoading">正在闻附近的草坪和垃圾桶<span class="dots"></span></div>
+    <div id="routeList"></div>
+  </div>
+
+  <div id="map"></div>
+  <div class="mini">🌿 草坪 · 🗑 垃圾桶 · 👣 人流 · 数据来自 OpenStreetMap + Open-Meteo<br>选中路线后点「出发」，走到草坪/垃圾桶附近会弹提示哦</div>
+</div>
+
+<div id="walkStats">🐾<span id="wsDist">0.00 km</span>·⏱<span id="wsTime">00:00</span></div>
+<div id="toastWrap"></div>
+<div id="actionBar"><button id="goBtn">🐕 出发遛狗！</button></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+"use strict";
+/* ================= 遛狗吧 ================= */
+const $ = id => document.getElementById(id);
+const OVERPASS = ["https://overpass-api.de/api/interpreter","https://overpass.kumi.systems/api/interpreter"];
+const OSRM = "https://routing.openstreetmap.de/routed-foot";
+
+let HOME = null;          // {lat,lon}
+let map, homeMarker, dogMarker;
+let greens = [], bins = [], pois = [];   // overpass features
+let routes = [];          // computed routes
+let selIdx = -1;
+let walking = false, watchId = null, walkPath = [], walkDist = 0, walkT0 = 0, walkTimer = null;
+let alerted = new Set();
+let accuracyCircle = null;
+
+/* ---------- tiny geo utils ---------- */
+const R_E = 6371000;
+const rad = d => d*Math.PI/180;
+function dist(a, b){ // meters, [lat,lon]
+  const x = rad(b[1]-a[1]) * Math.cos(rad((a[0]+b[0])/2)) * R_E;
+  const y = rad(b[0]-a[0]) * R_E;
+  return Math.hypot(x,y);
+}
+function destPoint(lat, lon, bearingDeg, dMeters){
+  const br = rad(bearingDeg), dr = dMeters/R_E, la1 = rad(lat), lo1 = rad(lon);
+  const la2 = Math.asin(Math.sin(la1)*Math.cos(dr)+Math.cos(la1)*Math.sin(dr)*Math.cos(br));
+  const lo2 = lo1 + Math.atan2(Math.sin(br)*Math.sin(dr)*Math.cos(la1), Math.cos(dr)-Math.sin(la1)*Math.sin(la2));
+  return [la2*180/Math.PI, lo2*180/Math.PI];
+}
+function distToPolyline(p, line){ // p=[lat,lon], line=[[lat,lon],...]
+  let best = Infinity;
+  for(let i=0;i<line.length-1;i++){
+    best = Math.min(best, distToSeg(p, line[i], line[i+1]));
+    if(best < 1) break;
+  }
+  return best;
+}
+function distToSeg(p, a, b){
+  const kx = Math.cos(rad(a[0]))*111320, ky = 110540;
+  const px=(p[1]-a[1])*kx, py=(p[0]-a[0])*ky, bx=(b[1]-a[1])*kx, by=(b[0]-a[0])*ky;
+  const l2 = bx*bx+by*by;
+  let t = l2 ? (px*bx+py*by)/l2 : 0;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(px-t*bx, py-t*by);
+}
+function centroid(coords){ // [[lat,lon],..]
+  let la=0, lo=0;
+  coords.forEach(c=>{la+=c[0];lo+=c[1]});
+  return [la/coords.length, lo/coords.length];
+}
+function fmtMin(min){ return min<60 ? `${Math.round(min)} 分钟` : `${Math.floor(min/60)} 小时 ${Math.round(min%60)} 分`; }
+
+/* ---------- clock ---------- */
+function tickClock(){
+  const n = new Date();
+  $("clockT").textContent = n.toTimeString().slice(0,5);
+  $("clockD").textContent = `${n.getMonth()+1}月${n.getDate()}日 星期${"日一二三四五六"[n.getDay()]}`;
+}
+tickClock(); setInterval(tickClock, 15000);
+
+/* ---------- toast ---------- */
+function toast(emoji, text, cls="", ms=4200){
+  const el = document.createElement("div");
+  el.className = "toast " + cls;
+  el.innerHTML = `<span class="be">${emoji}</span><span>${text}</span>`;
+  $("toastWrap").appendChild(el);
+  if(navigator.vibrate) navigator.vibrate([120,60,120]);
+  setTimeout(()=>{ el.classList.add("hide"); setTimeout(()=>el.remove(), 450); }, ms);
+}
+
+/* ================= 1. locate ================= */
+function locate(){
+  $("splashMsg").textContent = "正在找你在哪儿…";
+  $("splashErr").style.display = "none";
+  $("retryBtn").style.display = "none"; $("pickBtn").style.display = "none";
+  const qs = new URLSearchParams(location.search);
+  if(qs.get("lat") && qs.get("lon")){
+    return start(+qs.get("lat"), +qs.get("lon"));
+  }
+  if(!navigator.geolocation) return locFail("这个浏览器不支持定位");
+  navigator.geolocation.getCurrentPosition(
+    p => start(p.coords.latitude, p.coords.longitude),
+    e => locFail(e.code===1 ? "定位权限被拒绝了。请在浏览器设置里允许定位，或手动点选位置。" : "定位失败了：" + e.message),
+    { enableHighAccuracy:true, timeout:12000, maximumAge:60000 }
+  );
+}
+function locFail(msg){
+  $("splashMsg").textContent = "汪呜…没找到你 🥺";
+  const err = $("splashErr"); err.textContent = msg; err.style.display = "block";
+  $("retryBtn").style.display = "inline-block";
+  $("pickBtn").style.display = "inline-block";
+}
+$("retryBtn").onclick = locate;
+$("pickBtn").onclick = () => {
+  $("splash").classList.add("off");
+  initMap(-37.81, 144.96, 13);
+  toast("👆","在地图上点一下你家的位置","warn",6000);
+  map.once("click", e => start(e.latlng.lat, e.latlng.lng));
+};
+
+function start(lat, lon){
+  HOME = {lat, lon};
+  $("splash").classList.add("off");
+  initMap(lat, lon, 16);
+  loadWeather();   // parallel
+  loadArea();      // parallel: overpass -> routes
+}
+
+/* ================= 2. map ================= */
+function initMap(lat, lon, zoom){
+  if(map){ map.setView([lat,lon], zoom); return; }
+  map = L.map("map", {zoomControl:false}).setView([lat,lon], zoom);
+  L.control.zoom({position:"bottomright"}).addTo(map);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    {maxZoom:19, attribution:'© OpenStreetMap'}).addTo(map);
+}
+function placeHome(){
+  if(homeMarker) homeMarker.remove();
+  homeMarker = L.marker([HOME.lat,HOME.lon], {icon: L.divIcon({className:"dogMarker",html:"🏠",iconSize:[30,30],iconAnchor:[15,15]})}).addTo(map);
+}
+
+/* ================= 3. weather ================= */
+async function loadWeather(){
+  try{
+    const u = `https://api.open-meteo.com/v1/forecast?latitude=${HOME.lat}&longitude=${HOME.lon}` +
+      `&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,wind_speed_10m` +
+      `&hourly=precipitation,precipitation_probability,weather_code,soil_moisture_0_to_1cm` +
+      `&past_hours=6&forecast_hours=6&timezone=auto`;
+    const d = await (await fetch(u)).json();
+    renderWeather(d);
+  }catch(e){
+    $("wxLoading").textContent = "天气加载失败了 😿 刷新试试";
+  }
+}
+const WMO = {0:["☀️","晴天"],1:["🌤","基本是晴天"],2:["⛅","多云"],3:["☁️","阴天"],45:["🌫","有雾"],48:["🌫","冻雾"],
+  51:["🌦","毛毛雨"],53:["🌦","小雨"],55:["🌧","毛毛雨(大)"],56:["🌧","冻雨"],57:["🌧","冻雨"],
+  61:["🌧","小雨"],63:["🌧","中雨"],65:["🌧","大雨"],66:["🌧","冻雨"],67:["🌧","冻雨"],
+  71:["🌨","小雪"],73:["🌨","中雪"],75:["❄️","大雪"],77:["🌨","雪粒"],
+  80:["🌦","阵雨"],81:["🌧","阵雨"],82:["⛈","强阵雨"],85:["🌨","阵雪"],86:["❄️","强阵雪"],
+  95:["⛈","雷阵雨"],96:["⛈","雷雨夹雹"],99:["⛈","强雷暴"]};
+function wmo(c){ return WMO[c] || ["🌡","未知天气"]; }
+
+function renderWeather(d){
+  const c = d.current, H = d.hourly;
+  const now = new Date(c.time).getTime();
+  const idx = H.time.map(t=>new Date(t).getTime());
+  // windows
+  let past3=0, past6=0, next3=0, nextProb=0, soil=null;
+  idx.forEach((t,i)=>{
+    const dh = (t-now)/3600000;
+    const pr = H.precipitation[i] ?? 0;
+    if(dh>=-3 && dh<0) past3+=pr;
+    if(dh>=-6 && dh<0) past6+=pr;
+    if(dh>=0 && dh<3){ next3+=pr; nextProb=Math.max(nextProb, H.precipitation_probability?.[i] ?? 0); }
+    if(dh>=-1 && dh<=0 && H.soil_moisture_0_to_1cm) soil = H.soil_moisture_0_to_1cm[i];
+  });
+
+  const [em, desc] = wmo(c.weather_code);
+  $("wxEmoji").textContent = (c.is_day===0 && c.weather_code<=1) ? "🌙" : em;
+  $("wxTemp").textContent = Math.round(c.temperature_2m);
+  $("wxFeel").textContent = ` 体感 ${Math.round(c.apparent_temperature)}°`;
+  $("wxDesc").innerHTML = `${desc}<br>💧湿度 ${c.relative_humidity_2m}% · 🍃 ${Math.round(c.wind_speed_10m)} km/h`;
+
+  // rain status chips
+  const chips = [];
+  if(c.precipitation > 0)      chips.push(["🌧 正在下雨！","rain"]);
+  else if(past3 > 0.2)         chips.push([`🌧 过去3小时下过雨 (${past3.toFixed(1)}mm)`,"rain"]);
+  else                         chips.push(["🌈 前3小时没下雨","dry"]);
+  if(next3 > 0.2 || nextProb >= 50) chips.push([`☔ 未来3小时可能有雨 (${nextProb}%)`,"rain"]);
+  else                         chips.push([`🌤 未来3小时应该不下 (${nextProb}%)`,"dry"]);
+  // ground wetness
+  const wet = c.precipitation>0 || past3>0.3 || past6>1 || (soil!==null && soil>0.37);
+  const damp = !wet && (past6>0.2 || (soil!==null && soil>0.32));
+  chips.push(wet ? ["🐾 地面是湿的，回家记得擦脚脚","wet"] :
+            damp ? ["🐾 地面可能有点潮","wet"] : ["🐾 地面干爽","dry"]);
+  $("wxChips").innerHTML = chips.map(([t,k])=>`<div class="chip ${k}">${t}</div>`).join("");
+
+  // hourly timeline -3h..+3h
+  let tl = "";
+  idx.forEach((t,i)=>{
+    const dh=(t-now)/3600000;
+    if(dh<-3 || dh>3) return;
+    const hh = new Date(t).getHours();
+    const pr = H.precipitation[i] ?? 0, pp = H.precipitation_probability?.[i] ?? 0;
+    const e2 = pr>2?"🌧":pr>0.1?"🌦":wmo(H.weather_code[i])[0];
+    tl += `<div class="tl ${dh>=-1&&dh<0? "now":""}"><div class="h">${dh>=-1&&dh<0?"现在":hh+"时"}</div><div class="e">${e2}</div><div class="p">${pp}%</div></div>`;
+  });
+  $("rainTl").innerHTML = tl;
+
+  // clothes advice
+  const a = c.apparent_temperature, windy = c.wind_speed_10m >= 28;
+  const rainy = c.precipitation>0 || next3>0.2 || nextProb>=50;
+  let dog="🐶", title="", why="";
+  if(a >= 26){ dog="🥵"; title="太热啦，别穿衣服！"; why="注意随时补水，尽量走阴凉的路，摸摸地面别烫到肉垫。"; }
+  else if(a >= 15){ dog="🐕"; title="不用穿衣服，轻装出发！"; why="温度刚刚好，撒欢儿的好天气。"; }
+  else if(a >= 10){ dog="👕"; title="短毛/小型犬穿件薄衣服"; why="有点微凉，长毛大狗可以不穿。"; }
+  else if(a >= 5){ dog="🧥"; title="建议穿上保暖衣"; why="挺冷的，尤其是小型犬和老年犬要注意保暖。"; }
+  else { dog="🧣"; title="穿厚棉衣！速去速回"; why="非常冷，缩短遛弯时间，注意肉垫防冻。"; }
+  if(rainy){ dog="☔"; title="建议穿雨衣出门！"; why="现在有雨或未来3小时可能下雨，带上雨衣，回家擦干别着凉。"; }
+  else if(windy && a < 12){ why += " 今天风大，最好选挡风的衣服。"; }
+  $("advDog").textContent = dog; $("advTitle").textContent = title; $("advWhy").textContent = why;
+
+  $("wxLoading").style.display="none"; $("wxBody").style.display="block";
+}
+
+/* ================= 4. overpass area data ================= */
+async function loadArea(){
+  placeHome();
+  const q = `[out:json][timeout:25];(
+    way(around:1300,${HOME.lat},${HOME.lon})[leisure~"^(park|garden|dog_park|playground|pitch)$"];
+    way(around:1300,${HOME.lat},${HOME.lon})[landuse~"^(grass|meadow|recreation_ground|village_green)$"];
+    node(around:1300,${HOME.lat},${HOME.lon})[amenity~"^(waste_basket|waste_disposal)$"];
+    node(around:1300,${HOME.lat},${HOME.lon})[amenity~"^(cafe|restaurant|fast_food|bar|pub)$"];
+    node(around:1300,${HOME.lat},${HOME.lon})[shop];
+    node(around:1300,${HOME.lat},${HOME.lon})[highway=bus_stop];
+  );out geom 800;`;
+  let data = null;
+  for(const server of OVERPASS){
+    try{
+      const r = await fetch(server, {method:"POST", body:"data="+encodeURIComponent(q),
+        headers:{"Content-Type":"application/x-www-form-urlencoded"}});
+      if(r.ok){ data = await r.json(); break; }
+    }catch(e){/* try next */}
+  }
+  if(data){
+    for(const el of data.elements){
+      const t = el.tags || {};
+      if(el.type==="way" && el.geometry){
+        const ring = el.geometry.map(g=>[g.lat,g.lon]);
+        greens.push({id:el.id, ring, c:centroid(ring), name:t.name || (t.leisure==="dog_park"?"狗狗公园":"草坪"),
+          isPark: /park|garden|dog_park/.test(t.leisure||"")});
+      }else if(el.type==="node"){
+        if(/waste/.test(t.amenity||"")) bins.push({id:el.id, p:[el.lat,el.lon]});
+        else pois.push([el.lat,el.lon]);
+      }
+    }
+    // draw greens & bins
+    greens.forEach(g => L.polygon(g.ring, {color:"#5cb85c",weight:1.5,fillColor:"#8fd67a",fillOpacity:.35}).addTo(map));
+    bins.forEach(b => L.marker(b.p, {icon:L.divIcon({className:"poiIcon",html:"🗑",iconSize:[16,16],iconAnchor:[8,8]})}).addTo(map));
+  }
+  await buildRoutes();
+}
+
+/* ================= 5. build routes ================= */
+async function osrmTrip(waypoints){ // [[lat,lon],...] first = home, returns {line,[lat,lon][], distM, durMin}
+  const coords = waypoints.map(w=>`${w[1].toFixed(6)},${w[0].toFixed(6)}`).join(";");
+  const u = `${OSRM}/trip/v1/foot/${coords}?roundtrip=true&source=first&overview=full&geometries=geojson&steps=false`;
+  const d = await (await fetch(u)).json();
+  if(d.code!=="Ok" || !d.trips?.length) throw new Error("no trip");
+  const t = d.trips[0];
+  return { line: t.geometry.coordinates.map(c=>[c[1],c[0]]), distM: t.distance, durMin: t.duration/60 };
+}
+
+function routeCounts(line){
+  const lawns = greens.filter(g => {
+    if(distToPolyline(g.c,line) < 70) return true;
+    const step = Math.max(1, Math.ceil(g.ring.length/40));
+    for(let i=0;i<g.ring.length;i+=step) if(distToPolyline(g.ring[i],line) < 70) return true;
+    return false;
+  }).length;
+  const bn = bins.filter(b => distToPolyline(b.p,line) < 55).length;
+  const poi = pois.filter(p => distToPolyline(p,line) < 80).length;
+  return {lawns, bins:bn, poi};
+}
+function trafficLevel(poi, km){
+  const density = poi/Math.max(km,.3);
+  const h = new Date().getHours(), day = new Date().getDay();
+  let lv = density>7 ? 2 : density>2.5 ? 1 : 0;
+  if(day>=1&&day<=5&&((h>=7&&h<9)||(h>=17&&h<19))) lv=Math.min(2,lv+1); // rush hours
+  if(h>=22||h<6) lv=0;
+  return ["👣 人少清净","👣 人流一般","👣 人比较多"][lv];
+}
+
+async function buildRoutes(){
+  const parks = greens.filter(g=>g.isPark).sort((a,b)=>dist([HOME.lat,HOME.lon],a.c)-dist([HOME.lat,HOME.lon],b.c));
+  const near = parks.filter(p=>dist([HOME.lat,HOME.lon],p.c)<1200);
+  const home = [HOME.lat,HOME.lon];
+  const b0 = near.length ? Math.atan2(near[0].c[1]-HOME.lon, near[0].c[0]-HOME.lat)*180/Math.PI : Math.random()*360;
+
+  const cands = [];
+  if(near.length >= 1){
+    const pts = near.slice(0,3).map(p=>nearestVertex(p, home));
+    cands.push({name:"草坪撒欢线", emoji:"🌿", bg:"#eaf7df", desc:`串起附近 ${Math.min(near.length,3)} 个公园/草坪`, wps:[home,...pts]});
+  }
+  cands.push({name:"轻松小圈", emoji:"🍡", bg:"#fff1dc", desc:"饭后消食的小圈子",
+    wps:[home, destPoint(HOME.lat,HOME.lon,b0,320), destPoint(HOME.lat,HOME.lon,b0+120,300)]});
+  cands.push({name:"活力大圈", emoji:"⚡", bg:"#e8f3fd", desc:"精力旺盛就走这条",
+    wps:[home, destPoint(HOME.lat,HOME.lon,b0+30,600), destPoint(HOME.lat,HOME.lon,b0+150,550), destPoint(HOME.lat,HOME.lon,b0+260,500)]});
+  if(!near.length){
+    cands.splice(1,0,{name:"中距巡逻线", emoji:"🐾", bg:"#eaf7df", desc:"不紧不慢的巡逻路线",
+      wps:[home, destPoint(HOME.lat,HOME.lon,b0+60,450), destPoint(HOME.lat,HOME.lon,b0+200,420)]});
+  }
+
+  const colors = ["#4aad3e","#f0930f","#4c88b8"];
+  const results = await Promise.allSettled(cands.slice(0,3).map(c=>osrmTrip(c.wps)));
+  routes = [];
+  results.forEach((r,i)=>{
+    if(r.status!=="fulfilled") return;
+    const {line, distM, durMin} = r.value;
+    const km = distM/1000;
+    if(km < 0.3) return;
+    const cnt = routeCounts(line);
+    routes.push({...cands[i], line, km, min:durMin, ...cnt,
+      traffic: trafficLevel(cnt.poi, km), color: colors[routes.length%3],
+      layer: L.polyline(line,{color:colors[routes.length%3],weight:5,opacity:.55,dashArray:"1 10",lineCap:"round"}).addTo(map)});
+  });
+
+  $("rtLoading").style.display = "none";
+  if(!routes.length){
+    $("routeList").innerHTML = `<div class="skeleton">路线规划服务开小差了 😿<br>刷新页面再试试</div>`;
+    return;
+  }
+  $("routeList").innerHTML = routes.map((r,i)=>`
+    <div class="route" id="rt${i}" onclick="selectRoute(${i})">
+      <div class="ic" style="background:${r.bg}">${r.emoji}</div>
+      <div class="info">
+        <div class="nm">${r.name}</div>
+        <div class="dm">${r.desc} · ${r.km.toFixed(1)} km · 约${fmtMin(r.min)}</div>
+        <div class="stats">
+          <span class="st">🌿 草坪 ×${r.lawns}</span>
+          <span class="st">🗑 垃圾桶 ×${r.bins}</span>
+          <span class="st">${r.traffic}</span>
+        </div>
+      </div>
+      <div class="go">➜</div>
+    </div>`).join("");
+  const all = L.featureGroup(routes.map(r=>r.layer));
+  map.fitBounds(all.getBounds().pad(0.12));
+}
+function nearestVertex(green, from){
+  let best = green.c, bd = dist(from, green.c);
+  for(let i=0;i<green.ring.length;i+=2){
+    const d = dist(from, green.ring[i]);
+    if(d<bd){ bd=d; best=green.ring[i]; }
+  }
+  return best;
+}
+
+/* ================= 6. select & walk ================= */
+window.selectRoute = function(i){
+  if(walking) return toast("🐕","正在遛狗中，先点结束哦","warn");
+  selIdx = i;
+  routes.forEach((r,j)=>{
+    r.layer.setStyle(j===i ? {opacity:.95, weight:7, dashArray:null} : {opacity:.2, weight:4, dashArray:"1 10"});
+    $("rt"+j).classList.toggle("sel", j===i);
+  });
+  map.fitBounds(routes[i].layer.getBounds().pad(0.15));
+  const g = $("goBtn");
+  g.style.display = "block"; g.classList.remove("stop");
+  g.textContent = `🐕 出发遛「${routes[i].name}」！`;
+  $("routeHint").textContent = "选好啦，点下面出发";
+};
+
+$("goBtn").onclick = () => walking ? stopWalk() : startWalk();
+
+function startWalk(){
+  if(selIdx<0) return;
+  walking = true; walkPath = []; walkDist = 0; walkT0 = Date.now(); alerted = new Set();
+  const g = $("goBtn"); g.classList.add("stop"); g.textContent = "🛑 结束遛狗";
+  $("walkStats").style.display = "block";
+  walkTimer = setInterval(()=> {
+    const s = Math.floor((Date.now()-walkT0)/1000);
+    $("wsTime").textContent = `${String(Math.floor(s/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`;
+  }, 1000);
+  toast("🎉",`出发！沿着「${routes[selIdx].name}」走吧`,"",3500);
+  if(!navigator.geolocation) return toast("😿","没法定位，只能自己认路啦","warn");
+  watchId = navigator.geolocation.watchPosition(onPos,
+    e=>toast("😿","定位信号丢了…","warn"),
+    {enableHighAccuracy:true, maximumAge:2000, timeout:15000});
+  document.querySelector("#map").scrollIntoView({behavior:"smooth", block:"center"});
+}
+
+function onPos(p){
+  const cur = [p.coords.latitude, p.coords.longitude];
+  // dog marker
+  if(!dogMarker){
+    dogMarker = L.marker(cur,{icon:L.divIcon({className:"dogMarker",html:"🐕",iconSize:[30,30],iconAnchor:[15,15]}),zIndexOffset:1000}).addTo(map);
+    accuracyCircle = L.circle(cur,{radius:p.coords.accuracy||15,color:"#4c88b8",weight:1,fillOpacity:.08}).addTo(map);
+  }else{
+    dogMarker.setLatLng(cur);
+    accuracyCircle.setLatLng(cur).setRadius(p.coords.accuracy||15);
+  }
+  map.panTo(cur, {animate:true});
+  // distance
+  if(walkPath.length){
+    const d = dist(walkPath[walkPath.length-1], cur);
+    if(d>3 && d<120){ walkDist += d; walkPath.push(cur); }
+  }else walkPath.push(cur);
+  $("wsDist").textContent = (walkDist/1000).toFixed(2)+" km";
+
+  // proximity alerts
+  bins.forEach(b=>{
+    if(alerted.has("b"+b.id)) return;
+    if(dist(cur,b.p) < 45){ alerted.add("b"+b.id); toast("🗑","前面有垃圾桶！便便可以扔这儿","bin"); }
+  });
+  greens.forEach(g=>{
+    if(alerted.has("g"+g.id)) return;
+    const d = Math.min(dist(cur,g.c), distToPolyline(cur, g.ring));
+    if(d < 40){ alerted.add("g"+g.id); toast("🌿",`到「${g.name}」啦，撒欢儿吧！`); }
+  });
+}
+
+function stopWalk(){
+  walking = false;
+  if(watchId!==null){ navigator.geolocation.clearWatch(watchId); watchId=null; }
+  clearInterval(walkTimer);
+  const min = (Date.now()-walkT0)/60000;
+  $("walkStats").style.display = "none";
+  const g = $("goBtn"); g.classList.remove("stop");
+  g.textContent = `🐕 出发遛「${routes[selIdx].name}」！`;
+  toast("🏅",`遛完啦！${(walkDist/1000).toFixed(2)} km · ${fmtMin(min)}，狗狗真棒！`,"",7000);
+  if(dogMarker){ dogMarker.remove(); dogMarker=null; }
+  if(accuracyCircle){ accuracyCircle.remove(); accuracyCircle=null; }
+}
+
+/* go */
+locate();
+</script>
+</body>
+</html>
