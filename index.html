@@ -727,9 +727,10 @@ function renderBestWindows(d, idx, now){
     if(dh < -0.5 || dh > 18) return;
     const dt = new Date(t), hr = dt.getHours();
     if(hr < 6 || hr >= 22) return;
+    // 硬性排除：预报有雨或降雨概率≥50%的小时，绝不推荐
+    if((H.precipitation[i] ?? 0) > 0.05 || (H.precipitation_probability?.[i] ?? 0) >= 50) return;
     let s = 100;
     s -= (H.precipitation_probability?.[i] ?? 0) * 0.55;
-    s -= (H.precipitation[i] ?? 0) * 18;
     const T = H.temperature_2m[i];
     if(T > 23) s -= (T-23)*4.5;
     if(T < 8)  s -= (8-T)*3;
@@ -745,7 +746,11 @@ function renderBestWindows(d, idx, now){
       wins.push({t:cand[k].t, hr:cand[k].hr, day:cand[k].day, s:(cand[k].s+cand[k+1].s)/2});
   wins.sort((x,y)=>y.s-x.s);
   const el = $("bestWin");
-  if(!wins.length){ el.style.display="none"; return; }
+  if(!wins.length){
+    el.innerHTML = "🕐 未来 18 小时找不到不淋雨的完整时段 😿<br><span style='color:var(--ink2)'>雨具备好，瞅准雨停的空档速去速回吧</span>";
+    el.style.display = "block";
+    return;
+  }
   const top = wins[0];
   const second = wins.find(w=>Math.abs(w.t-top.t) >= 3*3600000);
   const today = new Date(now).getDate();
