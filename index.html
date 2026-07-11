@@ -363,7 +363,7 @@ const OSRM = "https://routing.openstreetmap.de/routed-foot";
 
 let HOME = null;          // {lat,lon}
 let map, homeMarker, dogMarker;
-let greens = [], bins = [], pois = [], waters = [];   // overpass features
+let greens = [], bins = [], pois = [], waters = [], toilets = [];   // overpass features
 let routes = [];          // computed routes
 let selIdx = -1;
 let walking = false, watchId = null, walkPath = [], walkDist = 0, walkT0 = 0, walkTimer = null;
@@ -817,6 +817,8 @@ async function loadArea(){
     way(around:1300,${HOME.lat},${HOME.lon})[landuse~"^(grass|meadow|recreation_ground|village_green)$"];
     node(around:1300,${HOME.lat},${HOME.lon})[amenity~"^(waste_basket|waste_disposal)$"];
     node(around:1300,${HOME.lat},${HOME.lon})[amenity=drinking_water];
+    node(around:1300,${HOME.lat},${HOME.lon})[amenity=toilets];
+    way(around:1300,${HOME.lat},${HOME.lon})[amenity=toilets];
     node(around:1300,${HOME.lat},${HOME.lon})[amenity~"^(cafe|restaurant|fast_food|bar|pub)$"];
     node(around:1300,${HOME.lat},${HOME.lon})[shop];
     node(around:1300,${HOME.lat},${HOME.lon})[highway=bus_stop];
@@ -834,11 +836,13 @@ async function loadArea(){
       const t = el.tags || {};
       if(el.type==="way" && el.geometry){
         const ring = el.geometry.map(g=>[g.lat,g.lon]);
-        greens.push({id:el.id, ring, c:centroid(ring), name:t.name || (t.leisure==="dog_park"?"狗狗公园":"草坪"),
+        if(t.amenity==="toilets") toilets.push({id:el.id, p:centroid(ring)});
+        else greens.push({id:el.id, ring, c:centroid(ring), name:t.name || (t.leisure==="dog_park"?"狗狗公园":"草坪"),
           isPark: /park|garden|dog_park/.test(t.leisure||"")});
       }else if(el.type==="node"){
         if(/waste/.test(t.amenity||"")) bins.push({id:el.id, p:[el.lat,el.lon]});
         else if(t.amenity==="drinking_water") waters.push({id:el.id, p:[el.lat,el.lon]});
+        else if(t.amenity==="toilets") toilets.push({id:el.id, p:[el.lat,el.lon]});
         else pois.push([el.lat,el.lon]);
       }
     }
@@ -848,6 +852,7 @@ async function loadArea(){
   setData(map, "greens", fc(greens.map(g=>polyFeat(g.ring))));
   bins.forEach(b => emojiMarker(map, b.p, "🗑"));
   waters.forEach(w => emojiMarker(map, w.p, "🚰"));
+  toilets.forEach(t => emojiMarker(map, t.p, "🚻"));
   await buildRoutes();
 }
 
@@ -1019,9 +1024,10 @@ function updateNearBar(cur){
   if(!walking || !$("explorer").classList.contains("open")){ el.style.display = "none"; return; }
   const f = d => d===Infinity ? "—" : d<45 ? "就在旁边!" : d<1000 ? Math.round(d)+"m" : (d/1000).toFixed(1)+"km";
   const db = nearestOf(cur, bins, b=>b.p), dw = nearestOf(cur, waters, w=>w.p);
+  const dt = nearestOf(cur, toilets, t=>t.p);
   let dg = Infinity;
   for(const g of greens){ const d = Math.min(dist(cur,g.c), distToPolyline(cur,g.ring)); if(d<dg) dg = d; }
-  el.innerHTML = `🗑 ${f(db)} · 🚰 ${f(dw)} · 🌿 ${f(dg)}`;
+  el.innerHTML = `🗑 ${f(db)} · 🚰 ${f(dw)} · 🌿 ${f(dg)} · 🚻 ${f(dt)}`;
   el.style.display = "block";
 }
 function tryResume(){
@@ -1231,6 +1237,7 @@ function openExplorer(focusWalk){
         paint:{"fill-color":"#9ddd7e","fill-opacity":.25}}, "exwalk-casing");
       bins.forEach(b => emojiMarker(exMap, b.p, "🗑"));
       waters.forEach(w => emojiMarker(exMap, w.p, "🚰"));
+      toilets.forEach(t => emojiMarker(exMap, t.p, "🚻"));
     }
   });
   if(focus){
