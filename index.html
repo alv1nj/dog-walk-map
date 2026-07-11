@@ -92,7 +92,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding:6px
 .maplibregl-ctrl-attrib{font-size:10px}
 
 /* big action button */
-#actionBar{position:fixed;left:0;right:0;bottom:0;z-index:1000;pointer-events:none;
+#actionBar{position:fixed;left:0;right:0;bottom:0;z-index:1550;pointer-events:none;
   display:flex;justify-content:center;padding:0 16px calc(14px + env(safe-area-inset-bottom))}
 #goBtn{pointer-events:auto;display:none;width:100%;max-width:488px;border:none;border-radius:999px;
   padding:16px;font-size:18px;font-weight:800;font-family:inherit;letter-spacing:2px;color:#fff;cursor:pointer;
@@ -102,13 +102,13 @@ header{display:flex;align-items:center;justify-content:space-between;padding:6px
 #goBtn.stop:active{box-shadow:0 3px 0 #c94a35}
 
 /* walking stats bar */
-#walkStats{display:none;position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:1000;
+#walkStats{display:none;position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:1550;
   background:#fff;border:2.5px solid var(--sun);border-radius:999px;box-shadow:0 6px 16px rgba(0,0,0,.15);
   padding:8px 18px;font-size:14px;font-weight:800;white-space:nowrap}
 #walkStats span{margin:0 6px}
 
 /* toast */
-#toastWrap{position:fixed;top:64px;left:0;right:0;z-index:1200;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none}
+#toastWrap{position:fixed;top:64px;left:0;right:0;z-index:1800;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none}
 .toast{background:#fff;border:3px solid var(--grass);border-radius:20px;padding:12px 20px;font-size:16px;font-weight:800;
   box-shadow:0 8px 24px rgba(0,0,0,.18);display:flex;align-items:center;gap:10px;
   animation:pop .35s cubic-bezier(.2,1.6,.4,1) both;max-width:88vw}
@@ -154,6 +154,13 @@ header{display:flex;align-items:center;justify-content:space-between;padding:6px
   font-weight:800;color:var(--ink);box-shadow:var(--shadow);cursor:pointer;flex-shrink:0}
 #exMap{flex:1;z-index:1}
 #exLegend{padding:10px 14px calc(12px + env(safe-area-inset-bottom));font-size:12px;color:var(--ink2);text-align:center;line-height:1.6}
+#nearBar{display:none;position:absolute;left:50%;transform:translateX(-50%);bottom:118px;z-index:10;
+  background:#fff;border:2.5px solid var(--grass);border-radius:999px;padding:8px 16px;
+  font-size:13.5px;font-weight:800;white-space:nowrap;box-shadow:0 6px 16px rgba(0,0,0,.15)}
+#freeBtn{width:100%;margin-top:4px;border:none;font-family:inherit;cursor:pointer;
+  background:linear-gradient(135deg,#67c3ec,#3f9fd8);color:#fff;font-size:15px;font-weight:800;
+  letter-spacing:1px;border-radius:999px;padding:13px;box-shadow:0 5px 0 #2f7eb0}
+#freeBtn:active{transform:translateY(3px);box-shadow:0 2px 0 #2f7eb0}
 .fogCanvas{position:absolute;inset:0;pointer-events:none;z-index:1}
 .skeleton{color:var(--ink2);font-size:13px;text-align:center;padding:14px 0}
 .skeleton .dots::after{content:"";animation:dots 1.2s steps(4) infinite}
@@ -263,6 +270,7 @@ input.txt:focus{border-color:var(--sun)}
     <h2>🦴 推荐遛狗路线 <span style="margin-left:auto;font-size:12px;color:#b8ab92;font-weight:600" id="routeHint">点一条试试</span></h2>
     <div class="skeleton" id="rtLoading">正在闻附近的草坪和垃圾桶<span class="dots"></span></div>
     <div id="routeList"></div>
+    <button id="freeBtn">🧭 不走路线，自由探索去！</button>
   </div>
 
   <div id="map"></div>
@@ -337,6 +345,7 @@ input.txt:focus{border-color:var(--sun)}
     <button id="exClose">✕</button>
   </div>
   <div id="exMap"></div>
+  <div id="nearBar"></div>
   <div id="exLegend">🐕 每次遛狗走过的路会把迷雾擦亮 60 米 · 带狗狗把雾都擦掉吧！</div>
 </div>
 
@@ -935,6 +944,33 @@ function startWalk(){
   beginTracking();
   document.querySelector("#map").scrollIntoView({behavior:"smooth", block:"center"});
 }
+let exDogMarker = null;
+$("freeBtn").onclick = ()=>{
+  if(walking) return toast("🐕","已经在遛啦，去地图看看吧","warn");
+  if(!HOME) return toast("🤔","先等定位好了再出发","warn");
+  walking = true; walkPath = []; walkDist = 0; walkT0 = Date.now(); alerted = new Set(); selIdx = -1;
+  sessRoute = {name:"自由探索", free:true};
+  saveSession();
+  const g = $("goBtn"); g.style.display = "block"; g.classList.add("stop"); g.textContent = "🛑 结束遛狗";
+  beginTracking();
+  openExplorer();
+  toast("🧭","自由探索开始！走到哪儿，雾就亮到哪儿","",4500);
+};
+function nearestOf(cur, arr, getP){
+  let bd = Infinity;
+  for(const x of arr){ const d = dist(cur, getP(x)); if(d<bd) bd = d; }
+  return bd;
+}
+function updateNearBar(cur){
+  const el = $("nearBar");
+  if(!walking || !$("explorer").classList.contains("open")){ el.style.display = "none"; return; }
+  const f = d => d===Infinity ? "—" : d<45 ? "就在旁边!" : d<1000 ? Math.round(d)+"m" : (d/1000).toFixed(1)+"km";
+  const db = nearestOf(cur, bins, b=>b.p), dw = nearestOf(cur, waters, w=>w.p);
+  let dg = Infinity;
+  for(const g of greens){ const d = Math.min(dist(cur,g.c), distToPolyline(cur,g.ring)); if(d<dg) dg = d; }
+  el.innerHTML = `🗑 ${f(db)} · 🚰 ${f(dw)} · 🌿 ${f(dg)}`;
+  el.style.display = "block";
+}
 function tryResume(){
   let s = null;
   try{ s = JSON.parse(localStorage.getItem(SKEY)); }catch(e){}
@@ -947,6 +983,7 @@ function tryResume(){
   });
   const g = $("goBtn"); g.style.display = "block"; g.classList.add("stop"); g.textContent = "🛑 结束遛狗";
   beginTracking();
+  if(sessRoute?.free) openExplorer();   // 自由探索模式恢复时直接回到迷雾地图
   toast("🐕",`欢迎回来！继续遛「${sessRoute?.name||"上次的路线"}」，记录还在哦`,"",5500);
 }
 // 熄屏/切后台回来后，重新拉起 GPS 监听
@@ -964,7 +1001,16 @@ function onPos(p){
   if(!dogMarker) dogMarker = emojiMarker(map, cur, "🐕", "bigMark dog");
   else dogMarker.setLngLat(ll(cur));
   if(mapLoaded) setData(map, "acc", fc([circleFeat(cur, p.coords.accuracy||15)]));
-  map.panTo(ll(cur));
+  // 迷雾地图开着时：小狗标记实时移动、地图跟随、雾随步点亮
+  if(exMap && $("explorer").classList.contains("open")){
+    if(!exDogMarker) exDogMarker = emojiMarker(exMap, cur, "🐕", "bigMark dog");
+    else exDogMarker.setLngLat(ll(cur));
+    exMap.panTo(ll(cur));
+    exFog.draw();
+  }else{
+    map.panTo(ll(cur));
+  }
+  updateNearBar(cur);
   // distance (锁屏漏记的一段按直线补上，超过800m视为定位漂移不计)
   if(walkPath.length){
     const d = dist(walkPath[walkPath.length-1], cur);
@@ -1007,6 +1053,9 @@ function stopWalk(){
   localStorage.removeItem(SKEY);
   sessRoute = null;
   if(dogMarker){ dogMarker.remove(); dogMarker=null; }
+  if(exDogMarker){ exDogMarker.remove(); exDogMarker=null; }
+  $("nearBar").style.display = "none";
+  if(exFog) exFog.draw();   // 刚存的记录立刻定格进迷雾
   if(mapLoaded) ["acc","walked","sess"].forEach(id=> setData(map, id, fc([])));
 }
 
@@ -1119,7 +1168,18 @@ function openExplorer(focusWalk){
   }
   setTimeout(()=>{ exMap.resize(); exFog.draw(); }, 60);
   const focus = focusWalk && (focusWalk.path||[]).length > 1;
-  exReady.then(()=> setData(exMap, "exwalk", focus ? fc([lineFeat(focusWalk.path)]) : fc([])));
+  exReady.then(()=>{
+    setData(exMap, "exwalk", focus ? fc([lineFeat(focusWalk.path)]) : fc([]));
+    // 把草坪/垃圾桶/饮水点也铺到迷雾地图上（一次性）
+    if(!exMap._poisAdded && (greens.length || bins.length || waters.length)){
+      exMap._poisAdded = true;
+      exMap.addSource("exgreens", {type:"geojson", data:fc(greens.map(g=>polyFeat(g.ring)))});
+      exMap.addLayer({id:"exgreens-fill", type:"fill", source:"exgreens",
+        paint:{"fill-color":"#9ddd7e","fill-opacity":.25}}, "exwalk-casing");
+      bins.forEach(b => emojiMarker(exMap, b.p, "🗑"));
+      waters.forEach(w => emojiMarker(exMap, w.p, "🚰"));
+    }
+  });
   if(focus){
     exMap.fitBounds(boundsOf(focusWalk.path), {padding:60});
   }else if(pts.length){
