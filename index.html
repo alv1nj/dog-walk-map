@@ -729,35 +729,40 @@ function renderBestWindows(d, idx, now){
     if(hr < 6 || hr >= 22) return;
     // 硬性排除：预报有雨或降雨概率≥50%的小时，绝不推荐
     if((H.precipitation[i] ?? 0) > 0.05 || (H.precipitation_probability?.[i] ?? 0) >= 50) return;
+    // 硬性排除：大风(≥35km/h)的小时
+    const w = H.wind_speed_10m?.[i] ?? 0;
+    if(w >= 35) return;
     let s = 100;
     s -= (H.precipitation_probability?.[i] ?? 0) * 0.55;
     const T = H.temperature_2m[i];
     if(T > 23) s -= (T-23)*4.5;
     if(T < 8)  s -= (8-T)*3;
     const uvh = H.uv_index?.[i] ?? 0; if(uvh >= 6) s -= (uvh-5)*5;
-    const w = H.wind_speed_10m?.[i] ?? 0; if(w > 25) s -= (w-25)*1.2;
+    if(w > 25) s -= (w-25)*1.2;
     const day = days[H.time[i].slice(0,10)];
     if(day && (t < day.sr || t > day.ss)) s -= 10;   // 天黑扣分
-    cand.push({t, hr, s, day: dt.getDate()});
+    cand.push({t, hr, s, day: dt.getDate(), sunny: (H.weather_code[i] ?? 99) <= 1});
   });
   const wins = [];
   for(let k=0;k<cand.length-1;k++)
     if(cand[k+1].t - cand[k].t === 3600000)
-      wins.push({t:cand[k].t, hr:cand[k].hr, day:cand[k].day, s:(cand[k].s+cand[k+1].s)/2});
-  wins.sort((x,y)=>y.s-x.s);
+      wins.push({t:cand[k].t, hr:cand[k].hr, day:cand[k].day,
+        s:(cand[k].s+cand[k+1].s)/2, sunny: cand[k].sunny && cand[k+1].sunny});
+  // 排序优先级：☀️晴天时段永远排最前，同类内再按舒适度分
+  wins.sort((x,y)=> (y.sunny - x.sunny) || (y.s - x.s));
   const el = $("bestWin");
   if(!wins.length){
-    el.innerHTML = "🕐 未来 18 小时找不到不淋雨的完整时段 😿<br><span style='color:var(--ink2)'>雨具备好，瞅准雨停的空档速去速回吧</span>";
+    el.innerHTML = "🕐 未来 18 小时找不到不淋雨、不吹大风的完整时段 😿<br><span style='color:var(--ink2)'>装备备好，瞅准天气的空档速去速回吧</span>";
     el.style.display = "block";
     return;
   }
   const top = wins[0];
   const second = wins.find(w=>Math.abs(w.t-top.t) >= 3*3600000);
   const today = new Date(now).getDate();
-  const stars = s => s>=85?"⭐⭐⭐ 完美":s>=65?"⭐⭐ 不错":s>=45?"⭐ 凑合":"😿 将就";
+  const stars = w => (w.sunny?"☀️":"") + (w.s>=85?"⭐⭐⭐ 完美":w.s>=65?"⭐⭐ 不错":w.s>=45?"⭐ 凑合":"😿 将就");
   const lbl = w => `${w.day===today?"今天":"明天"} ${String(w.hr).padStart(2,"0")}:00–${String((w.hr+2)%24).padStart(2,"0")}:00`;
-  el.innerHTML = `🕐 最佳遛狗时段：<b>${lbl(top)}</b>　${stars(top.s)}` +
-    (second && second.s>=45 ? `<br><span style="color:var(--ink2)">备选：${lbl(second)}　${stars(second.s)}</span>` : "");
+  el.innerHTML = `🕐 最佳遛狗时段：<b>${lbl(top)}</b>　${stars(top)}` +
+    (second && second.s>=45 ? `<br><span style="color:var(--ink2)">备选：${lbl(second)}　${stars(second)}</span>` : "");
   el.style.display = "block";
 }
 
