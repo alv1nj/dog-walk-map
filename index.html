@@ -615,9 +615,9 @@ let lastWX = null;
 async function loadWeather(){
   try{
     const u = `https://api.open-meteo.com/v1/forecast?latitude=${HOME.lat}&longitude=${HOME.lon}` +
-      `&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,wind_speed_10m,uv_index` +
+      `&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,wind_speed_10m,uv_index,dew_point_2m` +
       `&hourly=precipitation,precipitation_probability,weather_code,soil_moisture_0_to_1cm,temperature_2m,uv_index,wind_speed_10m` +
-      `&daily=sunrise,sunset&forecast_days=2&past_hours=6&forecast_hours=24&timezone=auto`;
+      `&daily=sunrise,sunset&forecast_days=2&past_hours=12&forecast_hours=24&timezone=auto`;
     const d = await (await fetch(u)).json();
     lastWX = d;
     renderWeather(d);
@@ -638,16 +638,22 @@ function renderWeather(d){
   const now = new Date(c.time).getTime();
   const idx = H.time.map(t=>new Date(t).getTime());
   // windows
-  let past3=0, past6=0, next3=0, nextProb=0, soil=null;
+  let past3=0, past6=0, rain12=0, next3=0, nextProb=0, soil=null, hsr=99, fogRecent=false;
   const soonCodes = [c.weather_code];
   idx.forEach((t,i)=>{
     const dh = (t-now)/3600000;
     const pr = H.precipitation[i] ?? 0;
     if(dh>=-3 && dh<0) past3+=pr;
     if(dh>=-6 && dh<0) past6+=pr;
+    if(dh>=-12 && dh<0){
+      rain12+=pr;
+      if(pr>0.1 && -dh<hsr) hsr = -dh;              // 距离上次下雨几小时
+      if(dh>=-3 && [45,48].includes(H.weather_code[i])) fogRecent = true;
+    }
     if(dh>=0 && dh<3){ next3+=pr; nextProb=Math.max(nextProb, H.precipitation_probability?.[i] ?? 0); soonCodes.push(H.weather_code[i]); }
     if(dh>=-1 && dh<=0 && H.soil_moisture_0_to_1cm) soil = H.soil_moisture_0_to_1cm[i];
   });
+  if(c.precipitation>0) hsr = 0;
 
   const [em, desc] = wmo(c.weather_code);
   $("wxEmoji").textContent = (c.is_day===0 && c.weather_code<=1) ? "🌙" : em;
@@ -663,10 +669,36 @@ function renderWeather(d){
   if(next3 > 0.2 || nextProb >= 50) chips.push([`☔ 未来3小时可能有雨 (${nextProb}%)`,"rain"]);
   else                         chips.push([`🌤 未来3小时应该不下 (${nextProb}%)`,"dry"]);
   // ground wetness
-  const wet = c.precipitation>0 || past3>0.3 || past6>1 || (soil!==null && soil>0.37);
-  const damp = !wet && (past6>0.2 || (soil!==null && soil>0.32));
-  chips.push(wet ? ["🐾 地面是湿的，回家记得擦脚脚","wet"] :
-            damp ? ["🐾 地面可能有点潮","wet"] : ["🐾 地面干爽","dry"]);
+  // 地面潮湿：路面/草坪分开判断（降雨史 + 雾 + 露水 + 土壤湿度 + 晴晒风干）
+  const spread = c.temperature_2m - (c.dew_point_2m ?? -99);   // 温度露点差
+  const rh = c.relative_humidity_2m;
+  const nightish = c.is_day===0 || new Date(c.time).getHours() < 10;   // 夜间/清晨易结露
+  const fogNow = [45,48].includes(c.weather_code);
+  const dewy = spread <= 2.5 && rh >= 90;
+  const heavyDew = spread <= 1.2 && rh >= 95;
+  // 路面：晴天+暖/风大时干得快
+  const dryFast = c.is_day===1 && c.weather_code<=2 && (c.wind_speed_10m>=18 || c.temperature_2m>=20);
+  const eHsr = dryFast ? hsr*1.6 : hsr;   // 等效"雨后小时数"
+  let pLv=0, pWhy="";
+  if(c.precipitation>0){ pLv=2; pWhy="正在下雨"; }
+  else if(eHsr<=2 && past6>0.2){ pLv=2; pWhy="刚下过雨"; }
+  else if(rain12>3 && eHsr<=5){ pLv=2; pWhy="雨后未干"; }
+  else if(fogNow){ pLv=1; pWhy="雾气"; }
+  else if(heavyDew && nightish){ pLv=1; pWhy="露水重"; }
+  else if((eHsr<=4 && past6>0.2) || (rain12>3 && eHsr<=8)){ pLv=1; pWhy="雨后快干了"; }
+  // 草坪：存水久，露水雾气都算
+  let gLv=0, gWhy="";
+  if(c.precipitation>0 || (hsr<=6 && past6>0.3) || (rain12>2 && hsr<=10)){ gLv=2; gWhy = hsr<=1?"刚下过雨":"雨后存水"; }
+  else if(soil!==null && soil>0.37){ gLv=2; gWhy="土壤很湿"; }
+  else if(fogNow || fogRecent){ gLv=2; gWhy="雾气打湿"; }
+  else if(dewy && nightish){ gLv=2; gWhy="晨露/夜露"; }
+  else if(dewy){ gLv=1; gWhy="有露水"; }
+  else if((soil!==null && soil>0.31) || (hsr<=10 && rain12>0.3)){ gLv=1; gWhy="还没全干"; }
+  const lvTxt=["干爽","有点潮","是湿的"], lvCls=["dry","wet","rain"];
+  chips.push([`🛣 路面${lvTxt[pLv]}${pWhy?`（${pWhy}）`:""}`, lvCls[pLv]]);
+  chips.push([`🌿 草坪${lvTxt[gLv]}${gWhy?`（${gWhy}）`:""}`, lvCls[gLv]]);
+  if(gLv>=1 && pLv===0) chips.push(["💡 想脚脚干爽就多走路面少进草丛","dry"]);
+  if(pLv===2 || gLv===2) chips.push(["🐾 回家记得擦脚脚","wet"]);
   // UV & paw-burn
   const uv = c.uv_index ?? 0;
   const pawBurn = c.is_day===1 && c.temperature_2m>=25 && c.weather_code<=2;
