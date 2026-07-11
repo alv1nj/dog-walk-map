@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#ffd66b">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5/dist/maplibre-gl.css">
 <style>
 :root{
   --cream:#fff8ec; --card:#ffffff; --ink:#4a3b2a; --ink2:#8a7a64;
@@ -87,8 +87,9 @@ header{display:flex;align-items:center;justify-content:space-between;padding:6px
 .route.sel .go{color:var(--grassd)}
 
 /* map */
-#map{height:340px;border-radius:var(--r);box-shadow:var(--shadow);border:3px solid #fff;z-index:1}
-.leaflet-container{font-family:inherit;background:#e8f2e2}
+#map{height:340px;border-radius:var(--r);box-shadow:var(--shadow);border:3px solid #fff;z-index:1;overflow:hidden;background:#f9f1de}
+.maplibregl-map{font-family:inherit}
+.maplibregl-ctrl-attrib{font-size:10px}
 
 /* big action button */
 #actionBar{position:fixed;left:0;right:0;bottom:0;z-index:1000;pointer-events:none;
@@ -153,7 +154,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding:6px
   font-weight:800;color:var(--ink);box-shadow:var(--shadow);cursor:pointer;flex-shrink:0}
 #exMap{flex:1;z-index:1}
 #exLegend{padding:10px 14px calc(12px + env(safe-area-inset-bottom));font-size:12px;color:var(--ink2);text-align:center;line-height:1.6}
-.fogCanvas{pointer-events:none}
+.fogCanvas{position:absolute;inset:0;pointer-events:none;z-index:1}
 .skeleton{color:var(--ink2);font-size:13px;text-align:center;padding:14px 0}
 .skeleton .dots::after{content:"";animation:dots 1.2s steps(4) infinite}
 @keyframes dots{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}}
@@ -201,9 +202,16 @@ input.txt:focus{border-color:var(--sun)}
 .hrow button{border:none;background:#faf6ee;border-radius:10px;padding:7px 9px;font-family:inherit;
   font-weight:700;cursor:pointer;font-size:12.5px;white-space:nowrap}
 
-/* dog marker */
-.dogMarker{font-size:30px;line-height:1;filter:drop-shadow(0 2px 2px rgba(0,0,0,.3));transition:transform .3s}
-.poiIcon{font-size:16px;line-height:1;text-shadow:0 1px 2px rgba(255,255,255,.9)}
+/* map markers: sticker bubbles */
+.poiIcon{width:26px;height:26px;background:#fff;border:2px solid #f0e6d2;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;font-size:13px;
+  box-shadow:0 2px 6px rgba(74,59,42,.18)}
+.bigMark{width:42px;height:42px;background:#fff;border:3px solid var(--sun);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;font-size:22px;
+  box-shadow:0 3px 10px rgba(74,59,42,.25)}
+.bigMark.dog{border-color:#8fd67a}
+/* splash 里的大狗表情沿用 #splash .dog 样式 */
+#splash .dog{background:none;border:none;box-shadow:none;width:auto;height:auto}
 </style>
 </head>
 <body>
@@ -332,7 +340,7 @@ input.txt:focus{border-color:var(--sun)}
 <div id="toastWrap"></div>
 <div id="actionBar"><button id="goBtn">🐕 出发遛狗！</button></div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/maplibre-gl@5/dist/maplibre-gl.js"></script>
 <script>
 "use strict";
 /* ================= 遛狗吧 ================= */
@@ -347,7 +355,6 @@ let routes = [];          // computed routes
 let selIdx = -1;
 let walking = false, watchId = null, walkPath = [], walkDist = 0, walkT0 = 0, walkTimer = null;
 let alerted = new Set();
-let accuracyCircle = null;
 
 /* ---------- tiny geo utils ---------- */
 const R_E = 6371000;
@@ -429,31 +436,126 @@ function locFail(msg){
 $("retryBtn").onclick = locate;
 $("pickBtn").onclick = () => {
   $("splash").classList.add("off");
-  initMap(-37.81, 144.96, 13);
-  toast("👆","在地图上点一下你家的位置","warn",6000);
-  map.once("click", e => start(e.latlng.lat, e.latlng.lng));
+  initMap(-37.81, 144.96, 12).then(()=>{
+    toast("👆","在地图上点一下你家的位置","warn",6000);
+    map.once("click", e => start(e.lngLat.lat, e.lngLat.lng));
+  });
 };
 
 function start(lat, lon){
   HOME = {lat, lon};
   $("splash").classList.add("off");
-  initMap(lat, lon, 16);
-  tryResume();     // 有未结束的遛狗就接着遛
   loadWeather();   // parallel
-  loadArea();      // parallel: overpass -> routes
+  initMap(lat, lon, 15.5).then(()=>{
+    tryResume();   // 有未结束的遛狗就接着遛
+    loadArea();    // overpass -> routes
+  });
 }
 
-/* ================= 2. map ================= */
+/* ================= 2. map (MapLibre GL + OpenFreeMap 矢量瓦片，绘本风调色) ================= */
+const STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
+let styleJSON = null, mapReady = null, mapLoaded = false;
+
+const FILL_COLORS = [
+  [/^park$/, "#c8e9a8"], [/wood/, "#b5e29c"], [/grass/, "#cdeeb0"],
+  [/ice/, "#eef7fa"], [/wetland/, "#d5ecd0"], [/pitch/, "#b9e6b3"],
+  [/track$/, "#e8dcc0"], [/cemetery/, "#d4e6c4"], [/hospital/, "#fbe3dc"],
+  [/school/, "#f8e9c9"], [/residential/, "#f6ecd7"], [/^water$/, "#a5d8f3"],
+  [/sand/, "#f9e9c0"], [/aeroway/, "#efe8d6"], [/building/, "#efe2c8"],
+  [/pattern/, "#e8dcc2"]
+];
+const LINE_COLORS = [
+  [/park_outline/, "#8fce6e"], [/waterway/, "#a5d8f3"],
+  [/motorway_casing|motorway_link_casing/, "#f0b26b"],
+  [/trunk_primary_casing/, "#ecc98a"], [/secondary_tertiary_casing/, "#eadbb4"],
+  [/casing/, "#e8dcc2"],
+  [/motorway/, "#ffc98c"], [/trunk_primary/, "#ffe0a8"], [/secondary_tertiary/, "#fff3d0"],
+  [/path_pedestrian/, "#d8c5a0"], [/rail/, "#dccfb8"],
+  [/minor|street|link|service_track/, "#ffffff"],
+  [/boundary/, "#d8c3a2"], [/aeroway/, "#e6dcc4"]
+];
+async function loadStyle(){
+  if(styleJSON) return styleJSON;
+  const s = await (await fetch(STYLE_URL)).json();
+  for(const ly of s.layers){
+    const id = ly.id; ly.paint = ly.paint || {};
+    if(ly.type === "background") ly.paint["background-color"] = "#f9f1de";
+    else if(ly.type === "raster" || ly.type === "fill-extrusion" || /one_way|shield|poi_/.test(id)){
+      (ly.layout = ly.layout || {}).visibility = "none";   // 藏掉地形晕渲/3D楼/POI杂讯
+    }
+    else if(ly.type === "fill"){
+      for(const [re,c] of FILL_COLORS) if(re.test(id)){ ly.paint["fill-color"] = c; break; }
+      if(/building/.test(id)) ly.paint["fill-outline-color"] = "#e0d0ae";
+    }
+    else if(ly.type === "line"){
+      for(const [re,c] of LINE_COLORS) if(re.test(id)){ ly.paint["line-color"] = c; break; }
+    }
+    else if(ly.type === "symbol"){
+      ly.paint["text-color"] = /water/.test(id) ? "#578eb5" : "#6b5a42";
+      ly.paint["text-halo-color"] = "#fff8ec";
+      ly.paint["text-halo-width"] = 1.4;
+    }
+  }
+  styleJSON = s;
+  return s;
+}
+/* geojson helpers ([lat,lon] -> [lng,lat]) */
+const ll = p => [p[1], p[0]];
+const fc = f => ({type:"FeatureCollection", features:f});
+const lineFeat = (pts, props={}) => ({type:"Feature", properties:props,
+  geometry:{type:"LineString", coordinates:pts.map(ll)}});
+const polyFeat = (ring, props={}) => ({type:"Feature", properties:props,
+  geometry:{type:"Polygon", coordinates:[ring.map(ll)]}});
+function circleFeat(c, rM){
+  const ring = [];
+  for(let i=0;i<=40;i++){
+    const a = i/40*2*Math.PI;
+    ring.push([c[0] + rM/110540*Math.cos(a), c[1] + rM/(111320*Math.cos(rad(c[0])))*Math.sin(a)]);
+  }
+  return polyFeat(ring);
+}
+const setData = (m, id, data) => m.getSource(id)?.setData(data);
+function boundsOf(pts){
+  const b = new maplibregl.LngLatBounds();
+  pts.forEach(p=>b.extend(ll(p)));
+  return b;
+}
+function emojiMarker(m, p, emoji, cls="poiIcon"){
+  const el = document.createElement("div");
+  el.className = cls; el.textContent = emoji;
+  return new maplibregl.Marker({element:el}).setLngLat(ll(p)).addTo(m);
+}
+function tameMap(m){
+  m.addControl(new maplibregl.NavigationControl({showCompass:false}), "bottom-right");
+  m.dragRotate.disable(); m.touchZoomRotate.disableRotation(); m.touchPitch?.disable();
+}
 function initMap(lat, lon, zoom){
-  if(map){ map.setView([lat,lon], zoom); return; }
-  map = L.map("map", {zoomControl:false}).setView([lat,lon], zoom);
-  L.control.zoom({position:"bottomright"}).addTo(map);
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-    {maxZoom:19, attribution:'© OpenStreetMap'}).addTo(map);
+  if(map){ map.jumpTo({center:[lon,lat], zoom}); return Promise.resolve(); }
+  return loadStyle().catch(()=>STYLE_URL).then(style=>{
+    map = new maplibregl.Map({container:"map", style, center:[lon,lat], zoom,
+      attributionControl:{compact:true}});
+    tameMap(map);
+    mapReady = new Promise(res=> map.on("load", ()=>{ mapLoaded = true; addBaseLayers(); res(); }));
+  });
+}
+function addBaseLayers(){
+  const line = (id, src, paint, layout={}) => map.addLayer({id, type:"line", source:src,
+    layout:{"line-cap":"round","line-join":"round",...layout}, paint});
+  ["greens","acc","routes","sess","walked"].forEach(id=> map.addSource(id, {type:"geojson", data:fc([])}));
+  map.addLayer({id:"greens-fill", type:"fill", source:"greens", paint:{"fill-color":"#9ddd7e","fill-opacity":.28}});
+  line("greens-line","greens",{"line-color":"#5cb85c","line-width":1.5,"line-opacity":.6,"line-dasharray":[2,2]},{"line-cap":"butt"});
+  map.addLayer({id:"acc-fill", type:"fill", source:"acc", paint:{"fill-color":"#4c88b8","fill-opacity":.12}});
+  line("routes-dot","routes",{"line-color":["get","color"],"line-width":5,"line-opacity":.7,"line-dasharray":[0.1,2]});
+  line("routes-sel-casing","routes",{"line-color":"#ffffff","line-width":11,"line-opacity":.9});
+  line("routes-sel","routes",{"line-color":["get","color"],"line-width":6});
+  map.setFilter("routes-sel-casing", ["==",["get","i"],-1]);
+  map.setFilter("routes-sel", ["==",["get","i"],-1]);
+  line("sess","sess",{"line-color":"#f0930f","line-width":6,"line-opacity":.75});
+  line("walked","walked",{"line-color":"#4c88b8","line-width":4,"line-opacity":.65,"line-dasharray":[0.1,2]});
 }
 function placeHome(){
   if(homeMarker) homeMarker.remove();
-  homeMarker = L.marker([HOME.lat,HOME.lon], {icon: L.divIcon({className:"dogMarker",html:"🏠",iconSize:[30,30],iconAnchor:[15,15]})}).addTo(map);
+  homeMarker = emojiMarker(map, [HOME.lat,HOME.lon], "🏠", "bigMark");
 }
 
 /* ================= 3. weather ================= */
@@ -642,11 +744,12 @@ async function loadArea(){
         else pois.push([el.lat,el.lon]);
       }
     }
-    // draw greens & bins & water fountains
-    greens.forEach(g => L.polygon(g.ring, {color:"#5cb85c",weight:1.5,fillColor:"#8fd67a",fillOpacity:.35}).addTo(map));
-    bins.forEach(b => L.marker(b.p, {icon:L.divIcon({className:"poiIcon",html:"🗑",iconSize:[16,16],iconAnchor:[8,8]})}).addTo(map));
-    waters.forEach(w => L.marker(w.p, {icon:L.divIcon({className:"poiIcon",html:"🚰",iconSize:[16,16],iconAnchor:[8,8]})}).addTo(map));
   }
+  // draw greens & bins & water fountains
+  await mapReady;
+  setData(map, "greens", fc(greens.map(g=>polyFeat(g.ring))));
+  bins.forEach(b => emojiMarker(map, b.p, "🗑"));
+  waters.forEach(w => emojiMarker(map, w.p, "🚰"));
   await buildRoutes();
 }
 
@@ -711,9 +814,9 @@ async function buildRoutes(){
     if(km < 0.3) return;
     const cnt = routeCounts(line);
     routes.push({...cands[i], line, km, min:durMin, ...cnt,
-      traffic: trafficLevel(cnt.poi, km), color: colors[routes.length%3],
-      layer: L.polyline(line,{color:colors[routes.length%3],weight:5,opacity:.55,dashArray:"1 10",lineCap:"round"}).addTo(map)});
+      traffic: trafficLevel(cnt.poi, km), color: colors[routes.length%3]});
   });
+  setData(map, "routes", fc(routes.map((r,i)=>lineFeat(r.line, {i, color:r.color}))));
 
   $("rtLoading").style.display = "none";
   if(!routes.length){
@@ -735,8 +838,7 @@ async function buildRoutes(){
       </div>
       <div class="go">➜</div>
     </div>`).join("");
-  const all = L.featureGroup(routes.map(r=>r.layer));
-  map.fitBounds(all.getBounds().pad(0.12));
+  map.fitBounds(boundsOf(routes.flatMap(r=>r.line)), {padding:44, maxZoom:16});
 }
 function nearestVertex(green, from){
   let best = green.c, bd = dist(from, green.c);
@@ -751,11 +853,12 @@ function nearestVertex(green, from){
 window.selectRoute = function(i){
   if(walking) return toast("🐕","正在遛狗中，先点结束哦","warn");
   selIdx = i;
-  routes.forEach((r,j)=>{
-    r.layer.setStyle(j===i ? {opacity:.95, weight:7, dashArray:null} : {opacity:.2, weight:4, dashArray:"1 10"});
-    $("rt"+j).classList.toggle("sel", j===i);
-  });
-  map.fitBounds(routes[i].layer.getBounds().pad(0.15));
+  map.setFilter("routes-sel-casing", ["==",["get","i"],i]);
+  map.setFilter("routes-sel", ["==",["get","i"],i]);
+  map.setFilter("routes-dot", ["!=",["get","i"],i]);
+  map.setPaintProperty("routes-dot", "line-opacity", .25);
+  routes.forEach((r,j)=> $("rt"+j).classList.toggle("sel", j===i));
+  map.fitBounds(boundsOf(routes[i].line), {padding:52, maxZoom:16.5});
   const g = $("goBtn");
   g.style.display = "block"; g.classList.remove("stop");
   g.textContent = `🐕 出发遛「${routes[i].name}」！`;
@@ -802,8 +905,10 @@ function tryResume(){
   if(!s || !s.t0 || Date.now()-s.t0 > 12*3600000){ localStorage.removeItem(SKEY); return; }
   walking = true; walkT0 = s.t0; walkDist = s.dist||0; walkPath = s.path||[];
   alerted = new Set(s.alerted||[]); sessRoute = s.route||null; selIdx = -1;
-  if(sessRoute?.line) L.polyline(sessRoute.line,{color:"#f0930f",weight:6,opacity:.75,lineCap:"round"}).addTo(map);
-  if(walkPath.length>1) L.polyline(walkPath,{color:"#4c88b8",weight:4,opacity:.55,dashArray:"2 8"}).addTo(map);
+  mapReady.then(()=>{
+    if(sessRoute?.line) setData(map, "sess", fc([lineFeat(sessRoute.line)]));
+    if(walkPath.length>1) setData(map, "walked", fc([lineFeat(walkPath)]));
+  });
   const g = $("goBtn"); g.style.display = "block"; g.classList.add("stop"); g.textContent = "🛑 结束遛狗";
   beginTracking();
   toast("🐕",`欢迎回来！继续遛「${sessRoute?.name||"上次的路线"}」，记录还在哦`,"",5500);
@@ -820,14 +925,10 @@ document.addEventListener("visibilitychange", ()=>{
 function onPos(p){
   const cur = [p.coords.latitude, p.coords.longitude];
   // dog marker
-  if(!dogMarker){
-    dogMarker = L.marker(cur,{icon:L.divIcon({className:"dogMarker",html:"🐕",iconSize:[30,30],iconAnchor:[15,15]}),zIndexOffset:1000}).addTo(map);
-    accuracyCircle = L.circle(cur,{radius:p.coords.accuracy||15,color:"#4c88b8",weight:1,fillOpacity:.08}).addTo(map);
-  }else{
-    dogMarker.setLatLng(cur);
-    accuracyCircle.setLatLng(cur).setRadius(p.coords.accuracy||15);
-  }
-  map.panTo(cur, {animate:true});
+  if(!dogMarker) dogMarker = emojiMarker(map, cur, "🐕", "bigMark dog");
+  else dogMarker.setLngLat(ll(cur));
+  if(mapLoaded) setData(map, "acc", fc([circleFeat(cur, p.coords.accuracy||15)]));
+  map.panTo(ll(cur));
   // distance (锁屏漏记的一段按直线补上，超过800m视为定位漂移不计)
   if(walkPath.length){
     const d = dist(walkPath[walkPath.length-1], cur);
@@ -837,6 +938,7 @@ function onPos(p){
     }
   }else walkPath.push(cur);
   $("wsDist").textContent = (walkDist/1000).toFixed(2)+" km";
+  if(mapLoaded && walkPath.length>1) setData(map, "walked", fc([lineFeat(walkPath)]));
   if(Date.now()-lastSessSave > 8000){ lastSessSave = Date.now(); saveSession(); }
 
   // proximity alerts
@@ -869,7 +971,7 @@ function stopWalk(){
   localStorage.removeItem(SKEY);
   sessRoute = null;
   if(dogMarker){ dogMarker.remove(); dogMarker=null; }
-  if(accuracyCircle){ accuracyCircle.remove(); accuracyCircle=null; }
+  if(mapLoaded) ["acc","walked","sess"].forEach(id=> setData(map, id, fc([])));
 }
 
 /* ================= 7. walk history & stats ================= */
@@ -925,60 +1027,67 @@ function visitedPoints(){
   if(walking) walkPath.forEach((p,i)=>{ if(i%3===0) pts.push(p); });
   return pts;
 }
-const FogLayer = L.Layer.extend({
-  onAdd(m){
-    this._m = m;
-    this._c = L.DomUtil.create("canvas","fogCanvas");
-    m.getPanes().overlayPane.appendChild(this._c);
-    m.on("move zoom viewreset resize", this._draw, this);
-    this._draw();
-  },
-  onRemove(m){ this._c.remove(); m.off("move zoom viewreset resize", this._draw, this); },
-  _draw(){
-    const m = this._m, size = m.getSize();
-    L.DomUtil.setPosition(this._c, m.containerPointToLayerPoint([0,0]));
-    if(this._c.width!==size.x) this._c.width = size.x;
-    if(this._c.height!==size.y) this._c.height = size.y;
-    const ctx = this._c.getContext("2d");
-    ctx.clearRect(0,0,size.x,size.y);
+function makeFog(m){
+  const cv = document.createElement("canvas");
+  cv.className = "fogCanvas";
+  m.getContainer().appendChild(cv);
+  const draw = ()=>{
+    const w = m.getContainer().clientWidth, h = m.getContainer().clientHeight;
+    if(cv.width !== w) cv.width = w;
+    if(cv.height !== h) cv.height = h;
+    const ctx = cv.getContext("2d");
+    ctx.clearRect(0,0,w,h);
     ctx.fillStyle = "rgba(72,60,96,.58)";
-    ctx.fillRect(0,0,size.x,size.y);
-    // reveal visited circles
+    ctx.fillRect(0,0,w,h);
     ctx.globalCompositeOperation = "destination-out";
-    const mpp = 40075016.686 * Math.cos(rad(m.getCenter().lat)) / Math.pow(2, m.getZoom()+8);
+    // 每像素米数：取中心点纬向投影差
+    const c = m.getCenter();
+    const p1 = m.project([c.lng, c.lat]), p2 = m.project([c.lng, c.lat+0.001]);
+    const mpp = 111.32 / Math.hypot(p2.x-p1.x, p2.y-p1.y);
     const r = Math.max(5, 60/mpp);
     for(const p of visitedPoints()){
-      const pt = m.latLngToContainerPoint(p);
-      if(pt.x<-r || pt.y<-r || pt.x>size.x+r || pt.y>size.y+r) continue;
+      const pt = m.project([p[1], p[0]]);
+      if(pt.x<-r || pt.y<-r || pt.x>w+r || pt.y>h+r) continue;
       const gr = ctx.createRadialGradient(pt.x,pt.y,r*.45, pt.x,pt.y,r);
       gr.addColorStop(0,"rgba(0,0,0,1)"); gr.addColorStop(1,"rgba(0,0,0,0)");
       ctx.fillStyle = gr;
       ctx.beginPath(); ctx.arc(pt.x,pt.y,r,0,7); ctx.fill();
     }
     ctx.globalCompositeOperation = "source-over";
-  }
-});
-let exMap = null, fog = null, exViewLayer = null;
+  };
+  m.on("move", draw); m.on("resize", draw); m.on("load", draw);
+  return {draw};
+}
+let exMap = null, exFog = null, exReady = null;
 function openExplorer(focusWalk){
   $("explorer").classList.add("open");
   const pts = visitedPoints();
   if(!exMap){
-    const ctr = HOME ? [HOME.lat,HOME.lon] : (pts[0] || [-37.81,144.96]);
-    exMap = L.map("exMap", {zoomControl:false}).setView(ctr, 14);
-    L.control.zoom({position:"bottomright"}).addTo(exMap);
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"}).addTo(exMap);
-    if(HOME) L.marker([HOME.lat,HOME.lon],{icon:L.divIcon({className:"dogMarker",html:"🏠",iconSize:[30,30],iconAnchor:[15,15]})}).addTo(exMap);
-    fog = new FogLayer(); exMap.addLayer(fog);
+    const ctr = HOME ? [HOME.lon,HOME.lat] : (pts.length ? ll(pts[0]) : [144.96,-37.81]);
+    const style = styleJSON && typeof styleJSON === "object" ? structuredClone(styleJSON) : STYLE_URL;
+    exMap = new maplibregl.Map({container:"exMap", style, center:ctr, zoom:13.5,
+      attributionControl:{compact:true}});
+    tameMap(exMap);
+    exReady = new Promise(res=> exMap.on("load", ()=>{
+      exMap.addSource("exwalk", {type:"geojson", data:fc([])});
+      exMap.addLayer({id:"exwalk-casing", type:"line", source:"exwalk",
+        layout:{"line-cap":"round","line-join":"round"},
+        paint:{"line-color":"#fff","line-width":9,"line-opacity":.9}});
+      exMap.addLayer({id:"exwalk-line", type:"line", source:"exwalk",
+        layout:{"line-cap":"round","line-join":"round"},
+        paint:{"line-color":"#ff7a3d","line-width":5}});
+      if(HOME) emojiMarker(exMap, [HOME.lat,HOME.lon], "🏠", "bigMark");
+      res();
+    }));
+    exFog = makeFog(exMap);
   }
-  if(exViewLayer){ exViewLayer.remove(); exViewLayer = null; }
-  if(focusWalk && (focusWalk.path||[]).length > 1){
-    exViewLayer = L.polyline(focusWalk.path,{color:"#ff7a3d",weight:5,opacity:.95,lineCap:"round"}).addTo(exMap);
-  }
-  setTimeout(()=>{ exMap.invalidateSize(); fog._draw(); }, 60);
-  if(focusWalk && (focusWalk.path||[]).length > 1){
-    exMap.fitBounds(L.latLngBounds(focusWalk.path).pad(0.25));
+  setTimeout(()=>{ exMap.resize(); exFog.draw(); }, 60);
+  const focus = focusWalk && (focusWalk.path||[]).length > 1;
+  exReady.then(()=> setData(exMap, "exwalk", focus ? fc([lineFeat(focusWalk.path)]) : fc([])));
+  if(focus){
+    exMap.fitBounds(boundsOf(focusWalk.path), {padding:60});
   }else if(pts.length){
-    exMap.fitBounds(L.latLngBounds(pts).pad(0.6));
+    exMap.fitBounds(boundsOf(pts), {padding:70});
   }else{
     toast("🐶",`${dogName()}还没出过门，整个世界都是新的！`,"warn",5000);
   }
@@ -1100,7 +1209,7 @@ async function syncNow(silent){
     if(!w.ok) throw new Error("put failed");
     localStorage.setItem("lgb_sync_at", String(Date.now()));
     setSyncStatus(); renderStats();
-    if(fog) fog._draw();
+    if(exFog) exFog.draw();
     if(!silent) toast("☁️","同步完成！");
   }catch(e){
     setSyncStatus("同步失败了，稍后会再试");
