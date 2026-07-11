@@ -573,13 +573,17 @@ function tameMap(m){
   m.addControl(new maplibregl.NavigationControl({showCompass:false}), "bottom-right");
   m.addControl(locateControl(m), "bottom-right");
   m.dragRotate.disable(); m.touchZoomRotate.disableRotation(); m.touchPitch?.disable();
-  // 署名角标默认收起成 ⓘ，点击才展开
-  setTimeout(()=>{
-    m.getContainer().querySelectorAll("details.maplibregl-ctrl-attrib").forEach(d=>{
-      d.open = false;
+  // 署名角标默认收起成 ⓘ，点击才展开。
+  // 控件在样式加载后才变 compact 并自动展开，所以要在 load/idle 之后再收
+  const collapseAttrib = ()=>{
+    m.getContainer().querySelectorAll(".maplibregl-ctrl-attrib").forEach(d=>{
+      d.removeAttribute("open");
       d.classList.remove("maplibregl-compact-show");
     });
-  }, 0);
+  };
+  m.on("load", collapseAttrib);
+  m.once("idle", collapseAttrib);
+  setTimeout(collapseAttrib, 2000);
 }
 function initMap(lat, lon, zoom){
   if(map){ map.jumpTo({center:[lon,lat], zoom}); return Promise.resolve(); }
