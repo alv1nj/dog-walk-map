@@ -210,6 +210,10 @@ input.txt:focus{border-color:var(--sun)}
   display:flex;align-items:center;justify-content:center;font-size:22px;
   box-shadow:0 3px 10px rgba(74,59,42,.25)}
 .bigMark.dog{border-color:#8fd67a}
+.locBtn button{font-size:15px}
+.mePulse{width:16px;height:16px;border-radius:50%;background:#4c88b8;border:3px solid #fff;
+  animation:mePulse 1.8s ease-out infinite}
+@keyframes mePulse{0%{box-shadow:0 0 0 0 rgba(76,136,184,.45)}100%{box-shadow:0 0 0 22px rgba(76,136,184,0)}}
 /* splash 里的大狗表情沿用 #splash .dog 样式 */
 #splash .dog{background:none;border:none;box-shadow:none;width:auto;height:auto}
 </style>
@@ -525,8 +529,40 @@ function emojiMarker(m, p, emoji, cls="poiIcon"){
   el.className = cls; el.textContent = emoji;
   return new maplibregl.Marker({element:el}).setLngLat(ll(p)).addTo(m);
 }
+function showMePulse(m, p){
+  if(m._meMarker){ m._meMarker.setLngLat(ll(p)); return; }
+  const el = document.createElement("div");
+  el.className = "mePulse";
+  m._meMarker = new maplibregl.Marker({element:el}).setLngLat(ll(p)).addTo(m);
+}
+function locateControl(m){
+  return {
+    onAdd(){
+      const d = document.createElement("div");
+      d.className = "maplibregl-ctrl maplibregl-ctrl-group locBtn";
+      d.innerHTML = '<button type="button" aria-label="回到我的位置">🎯</button>';
+      d.onclick = ()=>{
+        if(!navigator.geolocation) return toast("😿","这个浏览器不支持定位","warn");
+        const b = d.querySelector("button");
+        b.textContent = "⏳";
+        navigator.geolocation.getCurrentPosition(p=>{
+          b.textContent = "🎯";
+          const cur = [p.coords.latitude, p.coords.longitude];
+          m.flyTo({center:ll(cur), zoom:Math.max(m.getZoom(), 15.5)});
+          showMePulse(m, cur);
+        }, ()=>{
+          b.textContent = "🎯";
+          toast("😿","定位失败了，检查一下定位权限","warn");
+        }, {enableHighAccuracy:true, timeout:10000, maximumAge:20000});
+      };
+      return d;
+    },
+    onRemove(){}
+  };
+}
 function tameMap(m){
   m.addControl(new maplibregl.NavigationControl({showCompass:false}), "bottom-right");
+  m.addControl(locateControl(m), "bottom-right");
   m.dragRotate.disable(); m.touchZoomRotate.disableRotation(); m.touchPitch?.disable();
 }
 function initMap(lat, lon, zoom){
