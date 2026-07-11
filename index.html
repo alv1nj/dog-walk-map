@@ -129,6 +129,31 @@ header{display:flex;align-items:center;justify-content:space-between;padding:6px
   padding:10px 26px;font-size:15px;font-weight:800;color:var(--ink);cursor:pointer;box-shadow:0 4px 0 #e0af3c}
 
 .mini{font-size:11.5px;color:var(--ink2);text-align:center;margin-top:4px;line-height:1.7}
+
+/* stats card */
+.tabs{display:flex;gap:6px;margin-bottom:12px}
+.tab{flex:1;text-align:center;padding:7px 0;border-radius:999px;font-size:13px;font-weight:700;
+  background:#faf6ee;border:2px solid #f0e6d2;cursor:pointer;color:var(--ink2);transition:all .15s}
+.tab.on{background:var(--sun);border-color:#eec25a;color:var(--ink)}
+.statRow{display:flex;gap:8px}
+.tile{flex:1;background:#fdfaf3;border:2px solid #f0e6d2;border-radius:16px;padding:10px 4px;text-align:center}
+.tile .v{font-size:18px;font-weight:800;white-space:nowrap}
+.tile .l{font-size:11px;color:var(--ink2);margin-top:2px}
+#exploreBtn{width:100%;margin-top:12px;border:none;font-family:inherit;cursor:pointer;
+  background:linear-gradient(135deg,#b9a0e8,#9578d3);color:#fff;font-size:15px;font-weight:800;letter-spacing:1px;
+  border-radius:999px;padding:13px;box-shadow:0 5px 0 #7a5cba}
+#exploreBtn:active{transform:translateY(3px);box-shadow:0 2px 0 #7a5cba}
+
+/* explorer (fog map) */
+#explorer{position:fixed;inset:0;z-index:1500;background:var(--cream);display:none;flex-direction:column}
+#explorer.open{display:flex}
+#exHead{display:flex;align-items:center;gap:10px;padding:12px 14px;font-weight:800;font-size:17px}
+#exHead .sub{font-size:11.5px;color:var(--ink2);font-weight:600;line-height:1.3}
+#exClose{margin-left:auto;border:none;background:#fff;border-radius:999px;width:38px;height:38px;font-size:16px;
+  font-weight:800;color:var(--ink);box-shadow:var(--shadow);cursor:pointer;flex-shrink:0}
+#exMap{flex:1;z-index:1}
+#exLegend{padding:10px 14px calc(12px + env(safe-area-inset-bottom));font-size:12px;color:var(--ink2);text-align:center;line-height:1.6}
+.fogCanvas{pointer-events:none}
 .skeleton{color:var(--ink2);font-size:13px;text-align:center;padding:14px 0}
 .skeleton .dots::after{content:"";animation:dots 1.2s steps(4) infinite}
 @keyframes dots{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}}
@@ -182,6 +207,32 @@ header{display:flex;align-items:center;justify-content:space-between;padding:6px
 
   <div id="map"></div>
   <div class="mini">🌿 草坪 · 🗑 垃圾桶 · 👣 人流 · 数据来自 OpenStreetMap + Open-Meteo<br>选中路线后点「出发」，走到草坪/垃圾桶附近会弹提示哦</div>
+
+  <div class="card" id="statsCard" style="margin-top:14px">
+    <h2>🏆 遛狗成绩单</h2>
+    <div class="tabs" id="statTabs">
+      <div class="tab on" data-p="day">本日</div>
+      <div class="tab" data-p="week">本周</div>
+      <div class="tab" data-p="month">本月</div>
+      <div class="tab" data-p="all">总计</div>
+    </div>
+    <div class="statRow">
+      <div class="tile"><div class="v" id="stKm">0 km</div><div class="l">🐾 距离</div></div>
+      <div class="tile"><div class="v" id="stTime">0 分钟</div><div class="l">⏱ 时间</div></div>
+      <div class="tile"><div class="v" id="stCnt">0 次</div><div class="l">🦴 次数</div></div>
+    </div>
+    <button id="exploreBtn">🗺 小狗没去过的地方</button>
+  </div>
+</div>
+
+<div id="explorer">
+  <div id="exHead">
+    <span>🗺 小狗的探索地图</span>
+    <span class="sub">亮的地方去过啦<br>雾里都是新世界</span>
+    <button id="exClose">✕</button>
+  </div>
+  <div id="exMap"></div>
+  <div id="exLegend">🐕 每次遛狗走过的路会把迷雾擦亮 60 米 · 带狗狗把雾都擦掉吧！</div>
 </div>
 
 <div id="walkStats">🐾<span id="wsDist">0.00 km</span>·⏱<span id="wsTime">00:00</span></div>
@@ -601,9 +652,116 @@ function stopWalk(){
   const g = $("goBtn"); g.classList.remove("stop");
   g.textContent = `🐕 出发遛「${routes[selIdx].name}」！`;
   toast("🏅",`遛完啦！${(walkDist/1000).toFixed(2)} km · ${fmtMin(min)}，狗狗真棒！`,"",7000);
+  saveWalk(min);
   if(dogMarker){ dogMarker.remove(); dogMarker=null; }
   if(accuracyCircle){ accuracyCircle.remove(); accuracyCircle=null; }
 }
+
+/* ================= 7. walk history & stats ================= */
+const WKEY = "lgb_walks_v1";
+function loadWalks(){
+  try{ return JSON.parse(localStorage.getItem(WKEY)) || []; }catch(e){ return []; }
+}
+function downsample(path, gap=15){ // keep points >= gap meters apart
+  const out = [];
+  for(const p of path){
+    if(!out.length || dist(out[out.length-1], p) >= gap)
+      out.push([+p[0].toFixed(5), +p[1].toFixed(5)]);
+  }
+  return out;
+}
+function saveWalk(min){
+  if(walkDist < 50) return; // too short, not a real walk
+  const walks = loadWalks();
+  walks.push({ t0: new Date(walkT0).toISOString(), min: Math.round(min*10)/10,
+    km: Math.round(walkDist/10)/100, path: downsample(walkPath) });
+  try{ localStorage.setItem(WKEY, JSON.stringify(walks)); }catch(e){}
+  renderStats();
+}
+function periodStart(p){
+  const n = new Date();
+  if(p==="day")  return new Date(n.getFullYear(), n.getMonth(), n.getDate());
+  if(p==="week"){ const mon = (n.getDay()+6)%7; return new Date(n.getFullYear(), n.getMonth(), n.getDate()-mon); }
+  if(p==="month")return new Date(n.getFullYear(), n.getMonth(), 1);
+  return new Date(0);
+}
+let statPeriod = "day";
+function renderStats(){
+  const t0 = periodStart(statPeriod).getTime();
+  const ws = loadWalks().filter(w => new Date(w.t0).getTime() >= t0);
+  const km = ws.reduce((s,w)=>s+w.km, 0), min = ws.reduce((s,w)=>s+w.min, 0);
+  $("stKm").textContent = km >= 10 ? km.toFixed(1)+" km" : km.toFixed(2)+" km";
+  $("stTime").textContent = min ? fmtMin(min) : "0 分钟";
+  $("stCnt").textContent = ws.length + " 次";
+}
+$("statTabs").addEventListener("click", e=>{
+  const t = e.target.closest(".tab"); if(!t) return;
+  statPeriod = t.dataset.p;
+  document.querySelectorAll("#statTabs .tab").forEach(x=>x.classList.toggle("on", x===t));
+  renderStats();
+});
+renderStats();
+
+/* ================= 8. explorer: fog of war ================= */
+function visitedPoints(){
+  const pts = [];
+  loadWalks().forEach(w => (w.path||[]).forEach(p => pts.push(p)));
+  if(walking) walkPath.forEach((p,i)=>{ if(i%3===0) pts.push(p); });
+  return pts;
+}
+const FogLayer = L.Layer.extend({
+  onAdd(m){
+    this._m = m;
+    this._c = L.DomUtil.create("canvas","fogCanvas");
+    m.getPanes().overlayPane.appendChild(this._c);
+    m.on("move zoom viewreset resize", this._draw, this);
+    this._draw();
+  },
+  onRemove(m){ this._c.remove(); m.off("move zoom viewreset resize", this._draw, this); },
+  _draw(){
+    const m = this._m, size = m.getSize();
+    L.DomUtil.setPosition(this._c, m.containerPointToLayerPoint([0,0]));
+    if(this._c.width!==size.x) this._c.width = size.x;
+    if(this._c.height!==size.y) this._c.height = size.y;
+    const ctx = this._c.getContext("2d");
+    ctx.clearRect(0,0,size.x,size.y);
+    ctx.fillStyle = "rgba(72,60,96,.58)";
+    ctx.fillRect(0,0,size.x,size.y);
+    // reveal visited circles
+    ctx.globalCompositeOperation = "destination-out";
+    const mpp = 40075016.686 * Math.cos(rad(m.getCenter().lat)) / Math.pow(2, m.getZoom()+8);
+    const r = Math.max(5, 60/mpp);
+    for(const p of visitedPoints()){
+      const pt = m.latLngToContainerPoint(p);
+      if(pt.x<-r || pt.y<-r || pt.x>size.x+r || pt.y>size.y+r) continue;
+      const gr = ctx.createRadialGradient(pt.x,pt.y,r*.45, pt.x,pt.y,r);
+      gr.addColorStop(0,"rgba(0,0,0,1)"); gr.addColorStop(1,"rgba(0,0,0,0)");
+      ctx.fillStyle = gr;
+      ctx.beginPath(); ctx.arc(pt.x,pt.y,r,0,7); ctx.fill();
+    }
+    ctx.globalCompositeOperation = "source-over";
+  }
+});
+let exMap = null, fog = null;
+$("exploreBtn").onclick = () => {
+  $("explorer").classList.add("open");
+  const pts = visitedPoints();
+  if(!exMap){
+    const ctr = HOME ? [HOME.lat,HOME.lon] : (pts[0] || [-37.81,144.96]);
+    exMap = L.map("exMap", {zoomControl:false}).setView(ctr, 14);
+    L.control.zoom({position:"bottomright"}).addTo(exMap);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"}).addTo(exMap);
+    if(HOME) L.marker([HOME.lat,HOME.lon],{icon:L.divIcon({className:"dogMarker",html:"🏠",iconSize:[30,30],iconAnchor:[15,15]})}).addTo(exMap);
+    fog = new FogLayer(); exMap.addLayer(fog);
+  }
+  setTimeout(()=>{ exMap.invalidateSize(); fog._draw(); }, 60);
+  if(pts.length){
+    exMap.fitBounds(L.latLngBounds(pts).pad(0.6));
+  }else{
+    toast("🐶","狗狗还没出过门，整个世界都是新的！","warn",5000);
+  }
+};
+$("exClose").onclick = () => $("explorer").classList.remove("open");
 
 /* go */
 locate();
