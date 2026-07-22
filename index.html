@@ -176,7 +176,8 @@ header{display:flex;align-items:center;justify-content:space-between;padding:6px
 .weightBox{margin-top:16px;padding:13px;background:#fff8e8;border:2px solid #f0e1bd;border-radius:18px;overflow:hidden}
 .weightBox h4{font-size:15px;margin-bottom:4px}.weightInputs{display:block;width:100%;min-width:0}
 .weightInputs>div,.weightInputs input{display:block;min-width:0;max-width:100%;width:100%}
-#pfWeightDate{box-sizing:border-box;-webkit-appearance:none;appearance:none;width:-webkit-fill-available;max-width:100%;padding-right:12px}
+.profileDate{box-sizing:border-box;-webkit-appearance:none;appearance:none;width:-webkit-fill-available!important;max-width:100%;padding-right:12px!important}
+.ageAuto{margin-top:7px;padding:9px 12px;background:#eef7ff;border-radius:12px;color:#4c718e;font-size:12.5px;font-weight:700;line-height:1.5}
 .weightAdvice{margin-top:10px;padding:10px 12px;border-radius:14px;background:#eef9e8;color:#47713c;font-size:12.5px;font-weight:700;line-height:1.55}
 .weightList{margin-top:9px}.weightItem{display:flex;align-items:center;gap:8px;padding:7px 2px;border-top:1px dashed #e6d7b9;font-size:12.5px}
 .weightItem b{flex:1}.weightItem button{border:none;background:#fff0ea;color:#b7533d;border-radius:9px;padding:5px 8px;cursor:pointer}
@@ -314,6 +315,11 @@ input.txt:focus{border-color:var(--sun)}
   <h3>🐶 狗狗小档案 <button class="x" data-close>✕</button></h3>
   <div class="fld">名字</div>
   <input class="txt" id="pfName" placeholder="小狗叫什么呀" maxlength="12">
+  <div class="fld">品种</div>
+  <input class="txt" id="pfBreed" placeholder="例如：柴犬、拉布拉多、混种犬" maxlength="30">
+  <div class="fld">生日</div>
+  <input class="txt profileDate" id="pfBirthday" type="date">
+  <div class="ageAuto" id="pfAgeAuto">填写生日后会自动计算年龄</div>
   <div class="fld">体型</div>
   <div class="seg" id="pfSize"><div data-v="small">小型犬</div><div data-v="medium" class="on">中型犬</div><div data-v="large">大型犬</div></div>
   <div class="fld">毛发</div>
@@ -324,7 +330,7 @@ input.txt:focus{border-color:var(--sun)}
     <h4>⚖️ 体重记录</h4>
     <div class="mini" style="text-align:left">记录体重变化，日期可以补记或修改</div>
     <div class="weightInputs">
-      <div><div class="fld">日期</div><input class="txt" id="pfWeightDate" type="date"></div>
+      <div><div class="fld">日期</div><input class="txt profileDate" id="pfWeightDate" type="date"></div>
       <div><div class="fld">体重（kg）</div><input class="txt" id="pfWeight" type="number" min="0.1" max="150" step="0.1" inputmode="decimal" placeholder="例如 8.6"></div>
     </div>
     <button class="btn s" id="pfWeightAdd">＋ 记录这次体重</button>
@@ -1342,6 +1348,27 @@ document.querySelectorAll(".seg").forEach(seg=>{
 function segVal(id){ return $(id).querySelector(".on")?.dataset.v; }
 function segSet(id, v){ $(id).querySelectorAll("div").forEach(x=>x.classList.toggle("on", x.dataset.v===v)); }
 function localDate(){ const d=new Date(); return new Date(d-d.getTimezoneOffset()*60000).toISOString().slice(0,10); }
+function birthdayInfo(value, size=segVal("pfSize")||"medium"){
+  if(!value) return null;
+  const birth=new Date(value+"T00:00:00"), now=new Date();
+  if(!Number.isFinite(birth.getTime()) || birth>now) return null;
+  let months=(now.getFullYear()-birth.getFullYear())*12+now.getMonth()-birth.getMonth();
+  if(now.getDate()<birth.getDate()) months--;
+  months=Math.max(0,months);
+  const years=Math.floor(months/12), rem=months%12;
+  const seniorAt=size==="large"?7:size==="small"?10:8;
+  const stage=months<12?"puppy":years>=seniorAt?"senior":"adult";
+  const text=months<1?"未满 1 个月":years<1?`${months} 个月`:rem?`${years} 岁 ${rem} 个月`:`${years} 岁`;
+  return {months,stage,text};
+}
+function updateBirthday(){
+  const value=$("pfBirthday").value, info=birthdayInfo(value);
+  if(!value){ $("pfAgeAuto").textContent="填写生日后会自动计算年龄"; return; }
+  if(!info){ $("pfAgeAuto").textContent="生日不能晚于今天，请重新选择"; return; }
+  segSet("pfAge",info.stage);
+  const label={puppy:"幼犬",adult:"成犬",senior:"老年犬"}[info.stage];
+  $("pfAgeAuto").textContent=`现在 ${info.text} · 已自动归为${label}`;
+}
 function weightRecords(){ return (loadProfile()?.weights||[]).slice().sort((a,b)=>a.date.localeCompare(b.date)); }
 function renderWeights(){
   const rs=weightRecords(), latest=rs[rs.length-1], prev=rs[rs.length-2];
@@ -1358,14 +1385,21 @@ function renderWeights(){
 $("profBtn").onclick = ()=>{
   const p = loadProfile() || {};
   $("pfName").value = p.name || "";
+  $("pfBreed").value = p.breed || ""; $("pfBirthday").value=p.birthday||"";
   segSet("pfSize", p.size || "medium"); segSet("pfCoat", p.coat || "long"); segSet("pfAge", p.age || "adult");
+  updateBirthday();
   $("pfWeightDate").value=localDate(); $("pfWeight").value=""; renderWeights();
   openModal("profileModal");
 };
+$("pfBirthday").addEventListener("change",updateBirthday);
+$("pfSize").addEventListener("click",()=>setTimeout(updateBirthday));
 $("pfSave").onclick = ()=>{
   const old=loadProfile()||{};
-  const p = {name:$("pfName").value.trim(), size:segVal("pfSize"), coat:segVal("pfCoat"),
-    age:segVal("pfAge"), weights:old.weights||[], updatedAt:new Date().toISOString()};
+  const birthday=$("pfBirthday").value, info=birthdayInfo(birthday);
+  if(birthday && !info) return toast("🎂","生日不能晚于今天","warn");
+  const p = {name:$("pfName").value.trim(), breed:$("pfBreed").value.trim(), birthday,
+    size:segVal("pfSize"), coat:segVal("pfCoat"), age:info?.stage||segVal("pfAge"),
+    weights:old.weights||[], updatedAt:new Date().toISOString()};
   localStorage.setItem(PKEY, JSON.stringify(p));
   $("profileModal").classList.remove("open");
   toast("🐶",`${dogName()}的档案存好啦！`);
