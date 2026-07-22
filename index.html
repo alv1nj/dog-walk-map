@@ -319,29 +319,38 @@ input.txt:focus,select.txt:focus{border-color:var(--sun)}
   <div class="fld">品种</div>
   <select class="txt" id="pfBreed">
     <option value="">请选择品种</option>
-    <optgroup label="🇦🇺 澳洲常见 · Oodle 混种">
-      <option value="cavoodle_toy">Cavoodle（Toy Poodle 血系）</option>
-      <option value="cavoodle_mini">Cavoodle（Miniature Poodle 血系）</option>
-      <option value="groodle">Groodle / Goldendoodle</option><option value="labradoodle">Labradoodle</option>
+    <optgroup label="常见混种犬">
+      <option value="cavoodle">Cavoodle</option>
+      <option value="groodle">Groodle</option><option value="labradoodle">Labradoodle</option>
       <option value="maltipoo">Maltipoo</option><option value="cockapoo">Cockapoo</option>
       <option value="crossbreed">其他混种犬</option>
     </optgroup>
-    <optgroup label="🇦🇺 澳洲常见 · 注册犬种">
-      <option value="labrador">拉布拉多 Labrador Retriever</option><option value="jack_russell">杰克罗素 Jack Russell Terrier</option>
-      <option value="staffy">Staffy / Staffordshire Bull Terrier</option><option value="border_collie">边境牧羊犬 Border Collie</option>
-      <option value="cavalier">骑士查理王猎犬 Cavalier</option><option value="german_shepherd">德国牧羊犬</option>
-      <option value="golden">金毛寻回犬</option><option value="australian_cattle">澳洲牧牛犬 / Blue Heeler</option>
-      <option value="kelpie">澳洲 Kelpie</option><option value="rottweiler">罗威纳 Rottweiler</option>
-      <option value="dachshund">腊肠犬 Dachshund</option><option value="french_bulldog">法国斗牛犬</option>
-      <option value="toy_poodle">玩具贵宾 Toy Poodle</option><option value="mini_poodle">迷你贵宾 Miniature Poodle</option>
-      <option value="standard_poodle">标准贵宾 Standard Poodle</option><option value="maltese">马尔济斯 Maltese</option>
-      <option value="shih_tzu">西施犬 Shih Tzu</option><option value="chihuahua">吉娃娃 Chihuahua</option>
-      <option value="pug">巴哥犬 Pug</option><option value="beagle">比格犬 Beagle</option>
-      <option value="english_cocker">英国可卡犬</option><option value="springer">英国史宾格犬</option>
-      <option value="greyhound">灵缇 Greyhound</option><option value="whippet">惠比特 Whippet</option>
-      <option value="husky">西伯利亚哈士奇</option><option value="samoyed">萨摩耶 Samoyed</option>
+    <optgroup label="常见小型犬">
+      <option value="corgi">柯基</option><option value="shiba">柴犬</option><option value="dachshund">腊肠犬</option>
+      <option value="toy_poodle">玩具贵宾</option><option value="mini_poodle">迷你贵宾</option><option value="pomeranian">博美</option>
+      <option value="bichon">比熊</option><option value="maltese">马尔济斯</option><option value="shih_tzu">西施犬</option>
+      <option value="chihuahua">吉娃娃</option><option value="yorkie">约克夏</option><option value="mini_schnauzer">迷你雪纳瑞</option>
+      <option value="cavalier">骑士查理王猎犬</option><option value="french_bulldog">法国斗牛犬</option><option value="pug">巴哥犬</option>
+      <option value="jack_russell">杰克罗素</option><option value="papillon">蝴蝶犬</option><option value="westie">西高地白梗</option>
+      <option value="boston">波士顿梗</option><option value="japanese_spitz">日本尖嘴犬</option><option value="italian_greyhound">意大利灵缇</option>
     </optgroup>
-    <option value="other">其他注册犬种</option>
+    <optgroup label="常见中型犬">
+      <option value="border_collie">边境牧羊犬</option><option value="staffy">Staffy</option><option value="kelpie">Kelpie</option>
+      <option value="australian_cattle">澳洲牧牛犬</option><option value="aussie_shepherd">澳洲牧羊犬</option><option value="beagle">比格犬</option>
+      <option value="english_cocker">英国可卡犬</option><option value="springer">英国史宾格犬</option>
+      <option value="whippet">惠比特</option><option value="standard_poodle">标准贵宾</option><option value="schnauzer">标准雪纳瑞</option>
+      <option value="sheltie">喜乐蒂</option><option value="bull_terrier">牛头梗</option><option value="shar_pei">沙皮犬</option>
+      <option value="chow_chow">松狮</option><option value="basenji">巴仙吉</option>
+    </optgroup>
+    <optgroup label="常见大型犬">
+      <option value="labrador">拉布拉多</option><option value="golden">金毛</option><option value="german_shepherd">德国牧羊犬</option>
+      <option value="husky">哈士奇</option><option value="samoyed">萨摩耶</option><option value="rottweiler">罗威纳</option>
+      <option value="doberman">杜宾</option><option value="boxer">拳师犬</option><option value="greyhound">灵缇</option>
+      <option value="dalmatian">斑点狗</option><option value="akita">秋田犬</option><option value="maremma">马瑞马牧羊犬</option>
+      <option value="bernese">伯恩山犬</option><option value="great_dane">大丹犬</option><option value="newfoundland">纽芬兰犬</option>
+      <option value="british_bulldog">英国斗牛犬</option>
+    </optgroup>
+    <option value="other">其他品种</option>
   </select>
   <div class="fld">生日</div>
   <input class="txt profileDate" id="pfBirthday" type="date">
@@ -1411,7 +1420,7 @@ function birthdayGreeting(){
 }
 function weightRecords(){ return (loadProfile()?.weights||[]).slice().sort((a,b)=>a.date.localeCompare(b.date)); }
 const BREEDS={
-  cavoodle_toy:{n:"Cavoodle（Toy Poodle 血系）",oodle:"Toy Poodle 亲本"}, cavoodle_mini:{n:"Cavoodle（Miniature Poodle 血系）",oodle:"Miniature Poodle 亲本"},
+  cavoodle:{n:"Cavoodle",oodle:"贵宾犬亲本"},
   groodle:{n:"Groodle / Goldendoodle",oodle:"Golden Retriever 与 Poodle 双亲"}, labradoodle:{n:"Labradoodle",oodle:"Labrador 与 Poodle 双亲"},
   maltipoo:{n:"Maltipoo",oodle:"Maltese 与 Poodle 双亲"}, cockapoo:{n:"Cockapoo",oodle:"Cocker Spaniel 与 Poodle 双亲",risk:1}, crossbreed:{n:"其他混种犬",mixed:1},
   labrador:{n:"拉布拉多",range:"母犬 25–32 kg；公犬 29–36 kg",risk:1}, jack_russell:{n:"杰克罗素"}, staffy:{n:"Staffy",range:"母犬 11–15 kg；公犬 13–17 kg"},
@@ -1420,12 +1429,16 @@ const BREEDS={
   kelpie:{n:"澳洲 Kelpie",range:"16–23 kg"}, rottweiler:{n:"罗威纳",range:"母犬 36–45 kg；公犬 43–61 kg"},
   dachshund:{n:"腊肠犬"}, french_bulldog:{n:"法国斗牛犬"}, toy_poodle:{n:"玩具贵宾"}, mini_poodle:{n:"迷你贵宾"}, standard_poodle:{n:"标准贵宾"},
   maltese:{n:"马尔济斯"}, shih_tzu:{n:"西施犬"}, chihuahua:{n:"吉娃娃"}, pug:{n:"巴哥犬",risk:1}, beagle:{n:"比格犬",risk:1},
-  english_cocker:{n:"英国可卡犬",risk:1}, springer:{n:"英国史宾格犬",risk:1}, greyhound:{n:"灵缇"}, whippet:{n:"惠比特"}, husky:{n:"哈士奇"}, samoyed:{n:"萨摩耶"}, other:{n:"其他注册犬种"}
+  english_cocker:{n:"英国可卡犬",risk:1}, springer:{n:"英国史宾格犬",risk:1}, greyhound:{n:"灵缇"}, whippet:{n:"惠比特"}, husky:{n:"哈士奇"}, samoyed:{n:"萨摩耶"},
+  corgi:{n:"柯基"},shiba:{n:"柴犬"},pomeranian:{n:"博美"},bichon:{n:"比熊"},yorkie:{n:"约克夏"},mini_schnauzer:{n:"迷你雪纳瑞"},
+  papillon:{n:"蝴蝶犬"},westie:{n:"西高地白梗"},boston:{n:"波士顿梗"},japanese_spitz:{n:"日本尖嘴犬"},italian_greyhound:{n:"意大利灵缇"},
+  aussie_shepherd:{n:"澳洲牧羊犬"},schnauzer:{n:"标准雪纳瑞"},sheltie:{n:"喜乐蒂"},bull_terrier:{n:"牛头梗"},shar_pei:{n:"沙皮犬"},chow_chow:{n:"松狮"},basenji:{n:"巴仙吉"},
+  doberman:{n:"杜宾"},boxer:{n:"拳师犬"},dalmatian:{n:"斑点狗"},akita:{n:"秋田犬"},maremma:{n:"马瑞马牧羊犬"},bernese:{n:"伯恩山犬"},great_dane:{n:"大丹犬"},newfoundland:{n:"纽芬兰犬"},british_bulldog:{n:"英国斗牛犬"},other:{n:"其他品种"}
 };
 function breedId(value){
   if(BREEDS[value]) return value;
   const b=(value||"").toLowerCase().replace(/[\s·_-]/g,"");
-  if(b.includes("cavoodle")||b.includes("cavapoo")) return "cavoodle_mini";
+  if(b.includes("cavoodle")||b.includes("cavapoo")) return "cavoodle";
   return Object.keys(BREEDS).find(id=>b && (BREEDS[id].n.toLowerCase().replace(/[\s·_-]/g,"").includes(b)))||"other";
 }
 function renderWeights(){
