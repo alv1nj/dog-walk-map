@@ -171,8 +171,13 @@ header{display:flex;align-items:center;justify-content:space-between;padding:6px
 @keyframes dots{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}}
 
 /* header round button */
-.hbtn{border:none;background:#fff;width:38px;height:38px;border-radius:999px;font-size:18px;
-  box-shadow:var(--shadow);cursor:pointer;flex-shrink:0}
+.hbtn{border:none;background:#fff;min-width:38px;height:38px;padding:0 13px;border-radius:999px;font-size:14px;
+  font-family:inherit;font-weight:800;box-shadow:var(--shadow);cursor:pointer;flex-shrink:0;white-space:nowrap}
+.weightBox{margin-top:16px;padding:13px;background:#fff8e8;border:2px solid #f0e1bd;border-radius:18px}
+.weightBox h4{font-size:15px;margin-bottom:4px}.weightInputs{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.weightAdvice{margin-top:10px;padding:10px 12px;border-radius:14px;background:#eef9e8;color:#47713c;font-size:12.5px;font-weight:700;line-height:1.55}
+.weightList{margin-top:9px}.weightItem{display:flex;align-items:center;gap:8px;padding:7px 2px;border-top:1px dashed #e6d7b9;font-size:12.5px}
+.weightItem b{flex:1}.weightItem button{border:none;background:#fff0ea;color:#b7533d;border-radius:9px;padding:5px 8px;cursor:pointer}
 
 /* alert banner & best window */
 #alertBanner{display:none;background:linear-gradient(135deg,#ffe3dc,#ffd2c8);border:2px solid #f3a08c;
@@ -243,7 +248,7 @@ input.txt:focus{border-color:var(--sun)}
   <header>
     <div class="logo"><span class="paw">🐕</span><h1>遛<span>狗</span>吧</h1></div>
     <div style="display:flex;align-items:center;gap:8px">
-      <button class="hbtn" id="profBtn" title="狗狗档案">🐶</button>
+      <button class="hbtn" id="profBtn" title="狗狗档案">🐶 小狗档案</button>
       <div class="clock"><div class="t" id="clockT">--:--</div><div class="d" id="clockD"></div></div>
     </div>
   </header>
@@ -313,6 +318,17 @@ input.txt:focus{border-color:var(--sun)}
   <div class="seg" id="pfCoat"><div data-v="short">短毛</div><div data-v="long" class="on">长毛</div><div data-v="double">双层厚毛</div></div>
   <div class="fld">年龄</div>
   <div class="seg" id="pfAge"><div data-v="puppy">幼犬</div><div data-v="adult" class="on">成犬</div><div data-v="senior">老年犬</div></div>
+  <div class="weightBox">
+    <h4>⚖️ 体重记录</h4>
+    <div class="mini" style="text-align:left">记录体重变化，日期可以补记或修改</div>
+    <div class="weightInputs">
+      <div><div class="fld">日期</div><input class="txt" id="pfWeightDate" type="date"></div>
+      <div><div class="fld">体重（kg）</div><input class="txt" id="pfWeight" type="number" min="0.1" max="150" step="0.1" inputmode="decimal" placeholder="例如 8.6"></div>
+    </div>
+    <button class="btn s" id="pfWeightAdd">＋ 记录这次体重</button>
+    <div class="weightAdvice" id="weightAdvice"></div>
+    <div class="weightList" id="weightList"></div>
+  </div>
   <button class="btn p" id="pfSave">保存档案</button>
   <div class="mini">档案用来调整穿衣和防暑建议：短毛小型犬更怕冷，双层厚毛更怕热</div>
 </div></div>
@@ -1090,12 +1106,11 @@ function onPos(p){
   if(!dogMarker) dogMarker = emojiMarker(map, cur, "🐕", "bigMark dog");
   else dogMarker.setLngLat(ll(cur));
   if(mapLoaded) setData(map, "acc", fc([circleFeat(cur, p.coords.accuracy||15)]));
-  // 迷雾地图开着时：小狗标记实时移动、地图跟随、雾随步点亮
+  // 迷雾地图开着时：小狗标记实时移动、地图跟随
   if(exMap && $("explorer").classList.contains("open")){
     if(!exDogMarker) exDogMarker = emojiMarker(exMap, cur, "🐕", "bigMark dog");
     else exDogMarker.setLngLat(ll(cur));
     exMap.panTo(ll(cur));
-    exFog.draw();
   }else{
     map.panTo(ll(cur));
   }
@@ -1110,6 +1125,8 @@ function onPos(p){
   }else walkPath.push(cur);
   $("wsDist").textContent = (walkDist/1000).toFixed(2)+" km";
   if(mapLoaded && walkPath.length>1) setData(map, "walked", fc([lineFeat(walkPath)]));
+  // 必须在新点加入轨迹后重绘；锁屏恢复后的长线段也会由 visitedPoints 插值点亮
+  if(exFog && $("explorer").classList.contains("open")) exFog.draw();
   if(Date.now()-lastSessSave > 8000){ lastSessSave = Date.now(); saveSession(); }
 
   // proximity alerts
@@ -1197,8 +1214,22 @@ renderStats();
 /* ================= 8. explorer: fog of war ================= */
 function visitedPoints(){
   const pts = [];
-  loadWalks().forEach(w => (w.path||[]).forEach(p => pts.push(p)));
-  if(walking) walkPath.forEach((p,i)=>{ if(i%3===0) pts.push(p); });
+  const addPath = path => {
+    if(!path?.length) return;
+    pts.push(path[0]);
+    for(let i=1;i<path.length;i++){
+      const a=path[i-1], b=path[i], d=dist(a,b);
+      // 沿日记中的完整折线插值，确保锁屏期间补出的线段不会只亮两个端点
+      if(d>800){ pts.push(b); continue; } // 与轨迹计距规则一致，避免把定位漂移整段点亮
+      const steps=Math.max(1,Math.ceil(d/30));
+      for(let j=1;j<=steps;j++){
+        const t=j/steps;
+        pts.push([a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t]);
+      }
+    }
+  };
+  loadWalks().forEach(w => addPath(w.path||[]));
+  if(walking) addPath(walkPath);
   return pts;
 }
 function makeFog(m){
@@ -1308,20 +1339,49 @@ document.querySelectorAll(".seg").forEach(seg=>{
 });
 function segVal(id){ return $(id).querySelector(".on")?.dataset.v; }
 function segSet(id, v){ $(id).querySelectorAll("div").forEach(x=>x.classList.toggle("on", x.dataset.v===v)); }
+function localDate(){ const d=new Date(); return new Date(d-d.getTimezoneOffset()*60000).toISOString().slice(0,10); }
+function weightRecords(){ return (loadProfile()?.weights||[]).slice().sort((a,b)=>a.date.localeCompare(b.date)); }
+function renderWeights(){
+  const rs=weightRecords(), latest=rs[rs.length-1], prev=rs[rs.length-2];
+  $("weightList").innerHTML=rs.length ? rs.slice().reverse().slice(0,8).map(r=>
+    `<div class="weightItem"><b>${r.date}</b><span>${(+r.kg).toFixed(1)} kg</span><button data-weight-del="${r.date}">删除</button></div>`).join("") :
+    `<div class="mini">还没有记录，填入第一次体重吧</div>`;
+  if(!latest){ $("weightAdvice").textContent="建议每 2–4 周在相近时间、用同一台秤记录一次；体型区间只能作粗略参考。"; return; }
+  const p=loadProfile()||{}, ranges={small:[2,10],medium:[10,25],large:[25,45]}, range=ranges[p.size||"medium"];
+  let trend="这是第一条记录，继续记录后就能看到变化趋势。";
+  if(prev){ const pc=(latest.kg-prev.kg)/prev.kg*100; trend=Math.abs(pc)<1 ? "与上次基本持平。" : `较上次${pc>0?"增加":"减少"}${Math.abs(pc).toFixed(1)}%。`; }
+  const stage=p.age==="puppy" ? "幼犬成长速度快，重点看稳定成长并按兽医建议调整喂食。" : p.age==="senior" ? "老年犬建议更密切留意持续增减。" : "成犬适合维持稳定体重与清晰腰线。";
+  $("weightAdvice").textContent=`最新 ${(+latest.kg).toFixed(1)} kg，${trend}${stage} ${p.size==="small"?"小型":p.size==="large"?"大型":"中型"}犬常见体重约 ${range[0]}–${range[1]} kg，但品种和体况差异很大；若短期明显变化，请咨询兽医。`;
+}
 $("profBtn").onclick = ()=>{
   const p = loadProfile() || {};
   $("pfName").value = p.name || "";
   segSet("pfSize", p.size || "medium"); segSet("pfCoat", p.coat || "long"); segSet("pfAge", p.age || "adult");
+  $("pfWeightDate").value=localDate(); $("pfWeight").value=""; renderWeights();
   openModal("profileModal");
 };
 $("pfSave").onclick = ()=>{
+  const old=loadProfile()||{};
   const p = {name:$("pfName").value.trim(), size:segVal("pfSize"), coat:segVal("pfCoat"),
-    age:segVal("pfAge"), updatedAt:new Date().toISOString()};
+    age:segVal("pfAge"), weights:old.weights||[], updatedAt:new Date().toISOString()};
   localStorage.setItem(PKEY, JSON.stringify(p));
   $("profileModal").classList.remove("open");
   toast("🐶",`${dogName()}的档案存好啦！`);
   if(lastWX) renderWeather(lastWX);   // 重算穿衣建议
   scheduleSync();
+};
+$("pfWeightAdd").onclick=()=>{
+  const date=$("pfWeightDate").value, kg=+$("pfWeight").value;
+  if(!date || !Number.isFinite(kg) || kg<0.1 || kg>150) return toast("⚖️","请填写有效日期和 0.1–150 kg 的体重","warn");
+  const p=loadProfile()||{name:$("pfName").value.trim(),size:segVal("pfSize"),coat:segVal("pfCoat"),age:segVal("pfAge")};
+  const weights=(p.weights||[]).filter(r=>r.date!==date); weights.push({date,kg:Math.round(kg*10)/10});
+  p.weights=weights.sort((a,b)=>a.date.localeCompare(b.date)); p.updatedAt=new Date().toISOString();
+  localStorage.setItem(PKEY,JSON.stringify(p)); $("pfWeight").value=""; renderWeights(); scheduleSync(); toast("⚖️","体重记录好啦！");
+};
+$("weightList").onclick=e=>{
+  const date=e.target.dataset?.weightDel; if(!date) return;
+  const p=loadProfile()||{}; p.weights=(p.weights||[]).filter(r=>r.date!==date); p.updatedAt=new Date().toISOString();
+  localStorage.setItem(PKEY,JSON.stringify(p)); renderWeights(); scheduleSync();
 };
 
 /* ================= 10. history diary ================= */
