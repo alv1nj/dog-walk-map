@@ -201,9 +201,9 @@ header{display:flex;align-items:center;justify-content:space-between;padding:6px
   font-size:13px;font-weight:700;cursor:pointer;transition:all .15s}
 .seg div.on{background:var(--sun);border-color:#eec25a}
 .fld{font-size:13px;font-weight:700;color:var(--ink2);margin-top:12px}
-input.txt{width:100%;padding:11px 14px;border-radius:14px;border:2px solid #f0e6d2;font-family:inherit;
+input.txt,select.txt{width:100%;padding:11px 14px;border-radius:14px;border:2px solid #f0e6d2;font-family:inherit;
   font-size:15px;margin-top:6px;background:#fff;outline:none}
-input.txt:focus{border-color:var(--sun)}
+input.txt:focus,select.txt:focus{border-color:var(--sun)}
 .btn{border:none;font-family:inherit;cursor:pointer;border-radius:999px;padding:12px 16px;
   font-size:14.5px;font-weight:800;width:100%;margin-top:10px;letter-spacing:1px}
 .btn.p{background:linear-gradient(135deg,#6cc551,#4aad3e);color:#fff;box-shadow:0 4px 0 #3a8a31}
@@ -317,7 +317,32 @@ input.txt:focus{border-color:var(--sun)}
   <div class="fld">名字</div>
   <input class="txt" id="pfName" placeholder="小狗叫什么呀" maxlength="12">
   <div class="fld">品种</div>
-  <input class="txt" id="pfBreed" placeholder="例如：柴犬、拉布拉多、混种犬" maxlength="30">
+  <select class="txt" id="pfBreed">
+    <option value="">请选择品种</option>
+    <optgroup label="🇦🇺 澳洲常见 · Oodle 混种">
+      <option value="cavoodle_toy">Cavoodle（Toy Poodle 血系）</option>
+      <option value="cavoodle_mini">Cavoodle（Miniature Poodle 血系）</option>
+      <option value="groodle">Groodle / Goldendoodle</option><option value="labradoodle">Labradoodle</option>
+      <option value="maltipoo">Maltipoo</option><option value="cockapoo">Cockapoo</option>
+      <option value="crossbreed">其他混种犬</option>
+    </optgroup>
+    <optgroup label="🇦🇺 澳洲常见 · 注册犬种">
+      <option value="labrador">拉布拉多 Labrador Retriever</option><option value="jack_russell">杰克罗素 Jack Russell Terrier</option>
+      <option value="staffy">Staffy / Staffordshire Bull Terrier</option><option value="border_collie">边境牧羊犬 Border Collie</option>
+      <option value="cavalier">骑士查理王猎犬 Cavalier</option><option value="german_shepherd">德国牧羊犬</option>
+      <option value="golden">金毛寻回犬</option><option value="australian_cattle">澳洲牧牛犬 / Blue Heeler</option>
+      <option value="kelpie">澳洲 Kelpie</option><option value="rottweiler">罗威纳 Rottweiler</option>
+      <option value="dachshund">腊肠犬 Dachshund</option><option value="french_bulldog">法国斗牛犬</option>
+      <option value="toy_poodle">玩具贵宾 Toy Poodle</option><option value="mini_poodle">迷你贵宾 Miniature Poodle</option>
+      <option value="standard_poodle">标准贵宾 Standard Poodle</option><option value="maltese">马尔济斯 Maltese</option>
+      <option value="shih_tzu">西施犬 Shih Tzu</option><option value="chihuahua">吉娃娃 Chihuahua</option>
+      <option value="pug">巴哥犬 Pug</option><option value="beagle">比格犬 Beagle</option>
+      <option value="english_cocker">英国可卡犬</option><option value="springer">英国史宾格犬</option>
+      <option value="greyhound">灵缇 Greyhound</option><option value="whippet">惠比特 Whippet</option>
+      <option value="husky">西伯利亚哈士奇</option><option value="samoyed">萨摩耶 Samoyed</option>
+    </optgroup>
+    <option value="other">其他注册犬种</option>
+  </select>
   <div class="fld">生日</div>
   <input class="txt profileDate" id="pfBirthday" type="date">
   <div class="ageAuto" id="pfAgeAuto">填写生日后会自动计算年龄</div>
@@ -336,7 +361,7 @@ input.txt:focus{border-color:var(--sun)}
     </div>
     <button class="btn s" id="pfWeightAdd">＋ 记录这次体重</button>
     <div class="weightAdvice" id="weightAdvice"></div>
-    <div class="weightSources">建议依据：<a href="https://wsava.org/wp-content/uploads/2020/01/WSAVA-Nutrition-Assessment-Guidelines-2011-JSAP.pdf" target="_blank" rel="noopener">WSAVA 营养评估指南</a> · <a href="https://www.aaha.org/resources/life-stage-canine-2019/life-stage-canine-2019-2/" target="_blank" rel="noopener">AAHA 犬生命阶段指南</a> · <a href="https://doi.org/10.1111/jsap.13325" target="_blank" rel="noopener">VetCompass 品种风险研究</a></div>
+    <div class="weightSources">建议依据：<a href="https://wsava.org/wp-content/uploads/2020/01/WSAVA-Nutrition-Assessment-Guidelines-2011-JSAP.pdf" target="_blank" rel="noopener">WSAVA 营养评估</a> · <a href="https://doi.org/10.1111/avj.70099" target="_blank" rel="noopener">VetCompass Australia 体重研究</a> · <a href="https://doi.org/10.1111/jsap.13325" target="_blank" rel="noopener">品种超重风险研究</a></div>
     <div class="weightList" id="weightList"></div>
   </div>
   <button class="btn p" id="pfSave">保存档案</button>
@@ -1385,26 +1410,32 @@ function birthdayGreeting(){
   toast("🎂",`${dogName()}，生日快乐！今天满 ${info.text}啦，祝你每天都有好吃的和开心的散步！`,"",9000);
 }
 function weightRecords(){ return (loadProfile()?.weights||[]).slice().sort((a,b)=>a.date.localeCompare(b.date)); }
-function breedWeightRisk(breed){
-  const b=(breed||"").trim().toLowerCase().replace(/[\s·_-]/g,"");
-  if(!b) return "";
-  const risks=[
-    ["巴哥/八哥/Pug",["巴哥","八哥","pug"]],
-    ["比格犬/Beagle",["比格","beagle"]],
-    ["金毛寻回犬",["金毛","goldenretriever"]],
-    ["拉布拉多等寻回犬",["拉布拉多","labrador","retriever","寻回犬","寻猎犬"]],
-    ["史宾格、可卡等獚犬",["史宾格","斯宾格","springerspaniel","可卡","cocker","spaniel","獚犬"]]
-  ];
-  return risks.find(([,terms])=>terms.some(x=>b.includes(x)))?.[0]||"";
+const BREEDS={
+  cavoodle_toy:{n:"Cavoodle（Toy Poodle 血系）",oodle:"Toy Poodle 亲本"}, cavoodle_mini:{n:"Cavoodle（Miniature Poodle 血系）",oodle:"Miniature Poodle 亲本"},
+  groodle:{n:"Groodle / Goldendoodle",oodle:"Golden Retriever 与 Poodle 双亲"}, labradoodle:{n:"Labradoodle",oodle:"Labrador 与 Poodle 双亲"},
+  maltipoo:{n:"Maltipoo",oodle:"Maltese 与 Poodle 双亲"}, cockapoo:{n:"Cockapoo",oodle:"Cocker Spaniel 与 Poodle 双亲",risk:1}, crossbreed:{n:"其他混种犬",mixed:1},
+  labrador:{n:"拉布拉多",range:"母犬 25–32 kg；公犬 29–36 kg",risk:1}, jack_russell:{n:"杰克罗素"}, staffy:{n:"Staffy",range:"母犬 11–15 kg；公犬 13–17 kg"},
+  border_collie:{n:"边境牧羊犬",range:"14–25 kg"}, cavalier:{n:"骑士查理王猎犬",range:"6–8 kg"}, german_shepherd:{n:"德国牧羊犬",range:"母犬 23–32 kg；公犬 29–41 kg"},
+  golden:{n:"金毛寻回犬",range:"母犬 25–29 kg；公犬 29–34 kg",risk:1}, australian_cattle:{n:"澳洲牧牛犬",range:"16–23 kg"},
+  kelpie:{n:"澳洲 Kelpie",range:"16–23 kg"}, rottweiler:{n:"罗威纳",range:"母犬 36–45 kg；公犬 43–61 kg"},
+  dachshund:{n:"腊肠犬"}, french_bulldog:{n:"法国斗牛犬"}, toy_poodle:{n:"玩具贵宾"}, mini_poodle:{n:"迷你贵宾"}, standard_poodle:{n:"标准贵宾"},
+  maltese:{n:"马尔济斯"}, shih_tzu:{n:"西施犬"}, chihuahua:{n:"吉娃娃"}, pug:{n:"巴哥犬",risk:1}, beagle:{n:"比格犬",risk:1},
+  english_cocker:{n:"英国可卡犬",risk:1}, springer:{n:"英国史宾格犬",risk:1}, greyhound:{n:"灵缇"}, whippet:{n:"惠比特"}, husky:{n:"哈士奇"}, samoyed:{n:"萨摩耶"}, other:{n:"其他注册犬种"}
+};
+function breedId(value){
+  if(BREEDS[value]) return value;
+  const b=(value||"").toLowerCase().replace(/[\s·_-]/g,"");
+  if(b.includes("cavoodle")||b.includes("cavapoo")) return "cavoodle_mini";
+  return Object.keys(BREEDS).find(id=>b && (BREEDS[id].n.toLowerCase().replace(/[\s·_-]/g,"").includes(b)))||"other";
 }
 function renderWeights(){
   const rs=weightRecords(), latest=rs[rs.length-1], prev=rs[rs.length-2];
   $("weightList").innerHTML=rs.length ? rs.slice().reverse().slice(0,8).map(r=>
     `<div class="weightItem"><b>${r.date}</b><span>${(+r.kg).toFixed(1)} kg</span><button data-weight-del="${r.date}">删除</button></div>`).join("") :
     `<div class="mini">还没有记录，填入第一次体重吧</div>`;
-  const p=loadProfile()||{}, breed=(p.breed||"").trim(), risk=breedWeightRisk(breed);
+  const p=loadProfile()||{}, bid=breedId(p.breed||""), breed=BREEDS[bid]||BREEDS.other;
   if(!latest){
-    $("weightAdvice").textContent=`${breed?`已按「${breed}」和年龄阶段准备建议。`:"补充品种和生日后，建议会更有针对性。"} 建议固定使用同一台秤记录；单凭品种平均体重不能判断胖瘦，还要结合体况评分。`;
+    $("weightAdvice").textContent=`${p.breed?`已按「${breed.n}」和年龄阶段准备建议。`:"选择品种和生日后，建议会更有针对性。"} 建议固定使用同一台秤记录；单凭品种平均体重不能判断胖瘦，还要结合体况评分。`;
     return;
   }
   let trend="这是第一条记录，继续记录后就能看到变化趋势。";
@@ -1414,14 +1445,17 @@ function renderWeights(){
     (p.size==="large" ? "仍在生长期；大型幼犬应避免过快增重，并使用适合生长期的完整均衡饮食。" : "仍在生长期；重点看稳定生长曲线，不应套用成犬目标体重。") :
     stage==="senior" ? "已进入老年阶段；除体重外还要观察脊柱、肩胛和骨盆附近肌肉，体重稳定也可能伴随肌肉流失。" :
     "处于成犬阶段；重点是维持稳定趋势与理想体况，而不是追求单一公斤数。";
-  const breedAdvice=risk ? `${risk}在大样本研究中属于更需留意超重的品种/类型，建议更规律复测。` :
-    breed ? `目前不应仅凭「${breed}」设定目标公斤数，个体骨架与体况差异可能很大。` : "补充品种后可加入相应的研究风险提示。";
+  let breedAdvice=breed.oodle ? `${breed.n}没有统一的注册犬种体重标准，成年体型受${breed.oodle}尺寸影响很大；请以父母成年体重、连续生长曲线和兽医确认的体况作为目标。` :
+    breed.mixed ? "混种犬不适合套用品种标准，应以成年后的稳定健康体重和体况评分建立个人基线。" :
+    breed.range ? `${breed.n}的品种标准成年参考为${breed.range}；这是参考范围，不是个体诊断线。` :
+    `${breed.n}的个体差异较大，应以体况评分和连续趋势作为主要指南。`;
+  if(breed.risk) breedAdvice+=` 该品种/类型在大样本研究中更需留意超重，建议规律复测。`;
   $("weightAdvice").textContent=`最新 ${(+latest.kg).toFixed(1)} kg，${trend} ${ageAdvice} ${breedAdvice} 可用 WSAVA 9 分制检查：肋骨易摸到、从上方看有腰线、侧面腹部上提，通常对应理想的 4–5/9。出现无法解释的持续增减或肌肉流失，请咨询兽医。`;
 }
 $("profBtn").onclick = ()=>{
   const p = loadProfile() || {};
   $("pfName").value = p.name || "";
-  $("pfBreed").value = p.breed || ""; $("pfBirthday").value=p.birthday||"";
+  $("pfBreed").value = p.breed ? breedId(p.breed) : ""; $("pfBirthday").value=p.birthday||"";
   segSet("pfSize", p.size || "medium"); segSet("pfCoat", p.coat || "long"); segSet("pfAge", p.age || "adult");
   updateBirthday();
   $("pfWeightDate").value=localDate(); $("pfWeight").value=""; renderWeights();
@@ -1445,7 +1479,10 @@ $("pfSave").onclick = ()=>{
 $("pfWeightAdd").onclick=()=>{
   const date=$("pfWeightDate").value, kg=+$("pfWeight").value;
   if(!date || !Number.isFinite(kg) || kg<0.1 || kg>150) return toast("⚖️","请填写有效日期和 0.1–150 kg 的体重","warn");
-  const p=loadProfile()||{name:$("pfName").value.trim(),size:segVal("pfSize"),coat:segVal("pfCoat"),age:segVal("pfAge")};
+  const p=loadProfile()||{}, birthday=$("pfBirthday").value, info=birthdayInfo(birthday);
+  if(birthday && !info) return toast("🎂","生日不能晚于今天","warn");
+  Object.assign(p,{name:$("pfName").value.trim(),breed:$("pfBreed").value,birthday,
+    size:segVal("pfSize"),coat:segVal("pfCoat"),age:info?.stage||segVal("pfAge")});
   const weights=(p.weights||[]).filter(r=>r.date!==date); weights.push({date,kg:Math.round(kg*10)/10});
   p.weights=weights.sort((a,b)=>a.date.localeCompare(b.date)); p.updatedAt=new Date().toISOString();
   localStorage.setItem(PKEY,JSON.stringify(p)); $("pfWeight").value=""; renderWeights(); scheduleSync(); toast("⚖️","体重记录好啦！");
