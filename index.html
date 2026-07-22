@@ -370,7 +370,7 @@ input.txt:focus,select.txt:focus{border-color:var(--sun)}
     </div>
     <button class="btn s" id="pfWeightAdd">＋ 记录这次体重</button>
     <div class="weightAdvice" id="weightAdvice"></div>
-    <div class="weightSources">建议依据：<a href="https://wsava.org/wp-content/uploads/2020/01/WSAVA-Nutrition-Assessment-Guidelines-2011-JSAP.pdf" target="_blank" rel="noopener">WSAVA 营养评估</a> · <a href="https://doi.org/10.1111/avj.70099" target="_blank" rel="noopener">VetCompass Australia 体重研究</a> · <a href="https://doi.org/10.1111/jsap.13325" target="_blank" rel="noopener">品种超重风险研究</a></div>
+    <div class="weightSources">Reference：<a href="https://doi.org/10.1111/avj.70099" target="_blank" rel="noopener">VetCompass Australia</a> · <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC5584974/" target="_blank" rel="noopener">幼犬生长曲线研究</a> · <a href="https://dogsaustralia.org.au/BrowseBreed/" target="_blank" rel="noopener">Dogs Australia 犬种标准</a> · <a href="https://wsava.org/wp-content/uploads/2020/01/WSAVA-Nutrition-Assessment-Guidelines-2011-JSAP.pdf" target="_blank" rel="noopener">WSAVA 体况评分</a></div>
     <div class="weightList" id="weightList"></div>
   </div>
   <button class="btn p" id="pfSave">保存档案</button>
@@ -1435,6 +1435,36 @@ const BREEDS={
   aussie_shepherd:{n:"澳洲牧羊犬"},schnauzer:{n:"标准雪纳瑞"},sheltie:{n:"喜乐蒂"},bull_terrier:{n:"牛头梗"},shar_pei:{n:"沙皮犬"},chow_chow:{n:"松狮"},basenji:{n:"巴仙吉"},
   doberman:{n:"杜宾"},boxer:{n:"拳师犬"},dalmatian:{n:"斑点狗"},akita:{n:"秋田犬"},maremma:{n:"马瑞马牧羊犬"},bernese:{n:"伯恩山犬"},great_dane:{n:"大丹犬"},newfoundland:{n:"纽芬兰犬"},british_bulldog:{n:"英国斗牛犬"},other:{n:"其他品种"}
 };
+// 成年参考范围（kg）：犬种标准为主；混种犬仅作宽范围估算。g 用于匹配已验证的体型组生长曲线。
+const BREED_WEIGHTS={
+  cavoodle:[5,12,"small","mixed"],groodle:[15,35,"large","mixed"],labradoodle:[15,32,"large","mixed"],maltipoo:[3,9,"small","mixed"],cockapoo:[6,14,"medium","mixed"],
+  corgi:[9,14,"medium"],shiba:[7,11,"small"],dachshund:[5,15,"small"],toy_poodle:[2.5,4.5,"small"],mini_poodle:[5,9,"small"],pomeranian:[2,3.5,"small"],
+  bichon:[5,8,"small"],maltese:[3,4,"small"],shih_tzu:[4,7.5,"small"],chihuahua:[1.5,3,"small"],yorkie:[2,3.5,"small"],mini_schnauzer:[5.5,9,"small"],
+  cavalier:[6,8,"small"],french_bulldog:[8,14,"small"],pug:[6,8,"small"],jack_russell:[6,8,"small"],papillon:[3,5,"small"],westie:[7,10,"small"],
+  boston:[7,11,"small"],japanese_spitz:[5,10,"small"],italian_greyhound:[3.5,5,"small"],border_collie:[14,25,"medium"],staffy:[11,17,"medium"],
+  kelpie:[16,23,"medium"],australian_cattle:[16,23,"medium"],aussie_shepherd:[18,29,"medium"],beagle:[9,14,"medium"],english_cocker:[13,17,"medium"],
+  springer:[18,25,"medium"],whippet:[11,18,"medium"],standard_poodle:[20,32,"large"],schnauzer:[14,20,"medium"],sheltie:[7,12,"medium"],bull_terrier:[20,35,"medium"],
+  shar_pei:[18,29,"medium"],chow_chow:[20,32,"medium"],basenji:[9,12,"medium"],labrador:[25,36,"large"],golden:[25,34,"large"],german_shepherd:[23,41,"large"],
+  husky:[16,27,"large"],samoyed:[16,30,"large"],rottweiler:[36,61,"large"],doberman:[27,45,"large"],boxer:[25,32,"large"],greyhound:[27,40,"large"],
+  dalmatian:[20,32,"large"],akita:[32,59,"large"],maremma:[30,45,"large"],bernese:[32,52,"giant"],great_dane:[45,82,"giant"],newfoundland:[45,70,"giant"],british_bulldog:[18,25,"medium"]
+};
+function growthFraction(months,group){
+  const curves={
+    small:[[2,.18],[3,.30],[6,.65],[9,.88],[12,1]], medium:[[2,.15],[3,.26],[6,.56],[9,.78],[12,.92],[15,1]],
+    large:[[2,.12],[3,.22],[6,.47],[9,.68],[12,.84],[18,1]], giant:[[2,.10],[3,.18],[6,.40],[9,.59],[12,.75],[18,.92],[24,1]]
+  }, pts=curves[group]||curves.medium;
+  if(months<=pts[0][0]) return pts[0][1];
+  for(let i=1;i<pts.length;i++) if(months<=pts[i][0]){
+    const [m0,p0]=pts[i-1],[m1,p1]=pts[i],t=(months-m0)/(m1-m0); return p0+(p1-p0)*t;
+  }
+  return 1;
+}
+function breedAgeReference(id,months){
+  const w=BREED_WEIGHTS[id]; if(!w) return null;
+  const [lo,hi,group,kind]=w, growing=Number.isFinite(months) && months<(group==="small"?12:group==="medium"?15:group==="large"?18:24);
+  const f=growing?growthFraction(months,group):1, round=n=>n<10?(Math.round(n*10)/10).toFixed(1):String(Math.round(n));
+  return {lo:round(lo*f),hi:round(hi*f),growing,kind,adultLo:lo,adultHi:hi};
+}
 function breedId(value){
   if(BREEDS[value]) return value;
   const b=(value||"").toLowerCase().replace(/[\s·_-]/g,"");
@@ -1458,10 +1488,12 @@ function renderWeights(){
     (p.size==="large" ? "仍在生长期；大型幼犬应避免过快增重，并使用适合生长期的完整均衡饮食。" : "仍在生长期；重点看稳定生长曲线，不应套用成犬目标体重。") :
     stage==="senior" ? "已进入老年阶段；除体重外还要观察脊柱、肩胛和骨盆附近肌肉，体重稳定也可能伴随肌肉流失。" :
     "处于成犬阶段；重点是维持稳定趋势与理想体况，而不是追求单一公斤数。";
-  let breedAdvice=breed.oodle ? `${breed.n}没有统一的注册犬种体重标准，成年体型受${breed.oodle}尺寸影响很大；请以父母成年体重、连续生长曲线和兽医确认的体况作为目标。` :
-    breed.mixed ? "混种犬不适合套用品种标准，应以成年后的稳定健康体重和体况评分建立个人基线。" :
-    breed.range ? `${breed.n}的品种标准成年参考为${breed.range}；这是参考范围，不是个体诊断线。` :
-    `${breed.n}的个体差异较大，应以体况评分和连续趋势作为主要指南。`;
+  const ref=breedAgeReference(bid,info?.months), ageLabel=info?.text||"当前年龄";
+  let breedAdvice=ref ? (ref.growing ?
+    `${breed.n}在${ageLabel}的参考体重约 ${ref.lo}–${ref.hi} kg（由体型组生长曲线估算）；成年参考约 ${ref.adultLo}–${ref.adultHi} kg。` :
+    `${breed.n}${info?`在${ageLabel}`:""}的成年参考体重约 ${ref.lo}–${ref.hi} kg。${!info&&stage==="puppy"?" 填写生日后可换算当前月龄参考。":""}`) :
+    `${breed.n}暂缺可靠的数字范围，请以兽医确认的健康体重作为个人基线。`;
+  if(ref?.kind==="mixed") breedAdvice+=` 混种犬体型受父母影响较大，此范围会比纯种犬更宽。`;
   if(breed.risk) breedAdvice+=` 该品种/类型在大样本研究中更需留意超重，建议规律复测。`;
   $("weightAdvice").textContent=`最新 ${(+latest.kg).toFixed(1)} kg，${trend} ${ageAdvice} ${breedAdvice} 可用 WSAVA 9 分制检查：肋骨易摸到、从上方看有腰线、侧面腹部上提，通常对应理想的 4–5/9。出现无法解释的持续增减或肌肉流失，请咨询兽医。`;
 }
