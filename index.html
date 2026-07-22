@@ -487,6 +487,7 @@ $("pickBtn").onclick = () => {
 function start(lat, lon){
   HOME = {lat, lon};
   $("splash").classList.add("off");
+  setTimeout(birthdayGreeting, 650);
   loadWeather();   // parallel
   initMap(lat, lon, 15.5).then(()=>{
     tryResume();   // 有未结束的遛狗就接着遛
@@ -1369,6 +1370,18 @@ function updateBirthday(){
   const label={puppy:"幼犬",adult:"成犬",senior:"老年犬"}[info.stage];
   $("pfAgeAuto").textContent=`现在 ${info.text} · 已自动归为${label}`;
 }
+function birthdayGreeting(){
+  const p=loadProfile();
+  if(!p?.birthday || !$("splash").classList.contains("off")) return;
+  const now=new Date(), parts=p.birthday.split("-").map(Number);
+  if(parts[1]!==now.getMonth()+1 || parts[2]!==now.getDate()) return;
+  const today=localDate(), greeted=`${today}|${p.birthday}`;
+  if(localStorage.getItem("lgb_birthday_greet_v1")===greeted) return;
+  const info=birthdayInfo(p.birthday,p.size||"medium");
+  if(!info) return;
+  localStorage.setItem("lgb_birthday_greet_v1",greeted);
+  toast("🎂",`${dogName()}，生日快乐！今天满 ${info.text}啦，祝你每天都有好吃的和开心的散步！`,"",9000);
+}
 function weightRecords(){ return (loadProfile()?.weights||[]).slice().sort((a,b)=>a.date.localeCompare(b.date)); }
 function renderWeights(){
   const rs=weightRecords(), latest=rs[rs.length-1], prev=rs[rs.length-2];
@@ -1492,6 +1505,7 @@ async function syncNow(silent){
     if(!w.ok) throw new Error("put failed");
     localStorage.setItem("lgb_sync_at", String(Date.now()));
     setSyncStatus(); renderStats();
+    birthdayGreeting();
     if(exFog) exFog.draw();
     if(!silent) toast("☁️","同步完成！");
   }catch(e){
