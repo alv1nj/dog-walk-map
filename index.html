@@ -179,6 +179,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding:6px
 .profileDate{box-sizing:border-box;-webkit-appearance:none;appearance:none;width:-webkit-fill-available!important;max-width:100%;padding-right:12px!important}
 .ageAuto{margin-top:7px;padding:9px 12px;background:#eef7ff;border-radius:12px;color:#4c718e;font-size:12.5px;font-weight:700;line-height:1.5}
 .weightAdvice{margin-top:10px;padding:10px 12px;border-radius:14px;background:#eef9e8;color:#47713c;font-size:12.5px;font-weight:700;line-height:1.55}
+.weightSources{margin-top:7px;font-size:10.5px;color:var(--ink2);line-height:1.6}.weightSources a{color:#4c718e;font-weight:700}
 .weightList{margin-top:9px}.weightItem{display:flex;align-items:center;gap:8px;padding:7px 2px;border-top:1px dashed #e6d7b9;font-size:12.5px}
 .weightItem b{flex:1}.weightItem button{border:none;background:#fff0ea;color:#b7533d;border-radius:9px;padding:5px 8px;cursor:pointer}
 
@@ -335,6 +336,7 @@ input.txt:focus{border-color:var(--sun)}
     </div>
     <button class="btn s" id="pfWeightAdd">＋ 记录这次体重</button>
     <div class="weightAdvice" id="weightAdvice"></div>
+    <div class="weightSources">建议依据：<a href="https://wsava.org/wp-content/uploads/2020/01/WSAVA-Nutrition-Assessment-Guidelines-2011-JSAP.pdf" target="_blank" rel="noopener">WSAVA 营养评估指南</a> · <a href="https://www.aaha.org/resources/life-stage-canine-2019/life-stage-canine-2019-2/" target="_blank" rel="noopener">AAHA 犬生命阶段指南</a> · <a href="https://doi.org/10.1111/jsap.13325" target="_blank" rel="noopener">VetCompass 品种风险研究</a></div>
     <div class="weightList" id="weightList"></div>
   </div>
   <button class="btn p" id="pfSave">保存档案</button>
@@ -1383,17 +1385,38 @@ function birthdayGreeting(){
   toast("🎂",`${dogName()}，生日快乐！今天满 ${info.text}啦，祝你每天都有好吃的和开心的散步！`,"",9000);
 }
 function weightRecords(){ return (loadProfile()?.weights||[]).slice().sort((a,b)=>a.date.localeCompare(b.date)); }
+function breedWeightRisk(breed){
+  const b=(breed||"").trim().toLowerCase().replace(/[\s·_-]/g,"");
+  if(!b) return "";
+  const risks=[
+    ["巴哥/八哥/Pug",["巴哥","八哥","pug"]],
+    ["比格犬/Beagle",["比格","beagle"]],
+    ["金毛寻回犬",["金毛","goldenretriever"]],
+    ["拉布拉多等寻回犬",["拉布拉多","labrador","retriever","寻回犬","寻猎犬"]],
+    ["史宾格、可卡等獚犬",["史宾格","斯宾格","springerspaniel","可卡","cocker","spaniel","獚犬"]]
+  ];
+  return risks.find(([,terms])=>terms.some(x=>b.includes(x)))?.[0]||"";
+}
 function renderWeights(){
   const rs=weightRecords(), latest=rs[rs.length-1], prev=rs[rs.length-2];
   $("weightList").innerHTML=rs.length ? rs.slice().reverse().slice(0,8).map(r=>
     `<div class="weightItem"><b>${r.date}</b><span>${(+r.kg).toFixed(1)} kg</span><button data-weight-del="${r.date}">删除</button></div>`).join("") :
     `<div class="mini">还没有记录，填入第一次体重吧</div>`;
-  if(!latest){ $("weightAdvice").textContent="建议每 2–4 周在相近时间、用同一台秤记录一次；体型区间只能作粗略参考。"; return; }
-  const p=loadProfile()||{}, ranges={small:[2,10],medium:[10,25],large:[25,45]}, range=ranges[p.size||"medium"];
+  const p=loadProfile()||{}, breed=(p.breed||"").trim(), risk=breedWeightRisk(breed);
+  if(!latest){
+    $("weightAdvice").textContent=`${breed?`已按「${breed}」和年龄阶段准备建议。`:"补充品种和生日后，建议会更有针对性。"} 建议固定使用同一台秤记录；单凭品种平均体重不能判断胖瘦，还要结合体况评分。`;
+    return;
+  }
   let trend="这是第一条记录，继续记录后就能看到变化趋势。";
   if(prev){ const pc=(latest.kg-prev.kg)/prev.kg*100; trend=Math.abs(pc)<1 ? "与上次基本持平。" : `较上次${pc>0?"增加":"减少"}${Math.abs(pc).toFixed(1)}%。`; }
-  const stage=p.age==="puppy" ? "幼犬成长速度快，重点看稳定成长并按兽医建议调整喂食。" : p.age==="senior" ? "老年犬建议更密切留意持续增减。" : "成犬适合维持稳定体重与清晰腰线。";
-  $("weightAdvice").textContent=`最新 ${(+latest.kg).toFixed(1)} kg，${trend}${stage} ${p.size==="small"?"小型":p.size==="large"?"大型":"中型"}犬常见体重约 ${range[0]}–${range[1]} kg，但品种和体况差异很大；若短期明显变化，请咨询兽医。`;
+  const info=p.birthday?birthdayInfo(p.birthday,p.size||"medium"):null, stage=info?.stage||p.age||"adult";
+  const ageAdvice=stage==="puppy" ?
+    (p.size==="large" ? "仍在生长期；大型幼犬应避免过快增重，并使用适合生长期的完整均衡饮食。" : "仍在生长期；重点看稳定生长曲线，不应套用成犬目标体重。") :
+    stage==="senior" ? "已进入老年阶段；除体重外还要观察脊柱、肩胛和骨盆附近肌肉，体重稳定也可能伴随肌肉流失。" :
+    "处于成犬阶段；重点是维持稳定趋势与理想体况，而不是追求单一公斤数。";
+  const breedAdvice=risk ? `${risk}在大样本研究中属于更需留意超重的品种/类型，建议更规律复测。` :
+    breed ? `目前不应仅凭「${breed}」设定目标公斤数，个体骨架与体况差异可能很大。` : "补充品种后可加入相应的研究风险提示。";
+  $("weightAdvice").textContent=`最新 ${(+latest.kg).toFixed(1)} kg，${trend} ${ageAdvice} ${breedAdvice} 可用 WSAVA 9 分制检查：肋骨易摸到、从上方看有腰线、侧面腹部上提，通常对应理想的 4–5/9。出现无法解释的持续增减或肌肉流失，请咨询兽医。`;
 }
 $("profBtn").onclick = ()=>{
   const p = loadProfile() || {};
