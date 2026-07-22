@@ -173,9 +173,10 @@ header{display:flex;align-items:center;justify-content:space-between;padding:6px
 /* header round button */
 .hbtn{border:none;background:#fff;min-width:38px;height:38px;padding:0 13px;border-radius:999px;font-size:14px;
   font-family:inherit;font-weight:800;box-shadow:var(--shadow);cursor:pointer;flex-shrink:0;white-space:nowrap}
-.weightBox{margin-top:16px;padding:13px;background:#fff8e8;border:2px solid #f0e1bd;border-radius:18px}
-.weightBox h4{font-size:15px;margin-bottom:4px}.weightInputs{display:grid;grid-template-columns:minmax(0,1fr);gap:2px}
-.weightInputs>div,.weightInputs input{min-width:0;width:100%}
+.weightBox{margin-top:16px;padding:13px;background:#fff8e8;border:2px solid #f0e1bd;border-radius:18px;overflow:hidden}
+.weightBox h4{font-size:15px;margin-bottom:4px}.weightInputs{display:block;width:100%;min-width:0}
+.weightInputs>div,.weightInputs input{display:block;min-width:0;max-width:100%;width:100%}
+#pfWeightDate{box-sizing:border-box;-webkit-appearance:none;appearance:none;width:-webkit-fill-available;max-width:100%;padding-right:12px}
 .weightAdvice{margin-top:10px;padding:10px 12px;border-radius:14px;background:#eef9e8;color:#47713c;font-size:12.5px;font-weight:700;line-height:1.55}
 .weightList{margin-top:9px}.weightItem{display:flex;align-items:center;gap:8px;padding:7px 2px;border-top:1px dashed #e6d7b9;font-size:12.5px}
 .weightItem b{flex:1}.weightItem button{border:none;background:#fff0ea;color:#b7533d;border-radius:9px;padding:5px 8px;cursor:pointer}
