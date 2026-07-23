@@ -419,6 +419,7 @@ input.txt:focus,select.txt:focus{border-color:var(--sun)}
 <div id="actionBar"><button id="goBtn">🐕 出发遛狗！</button></div>
 
 <script src="https://unpkg.com/maplibre-gl@5/dist/maplibre-gl.js"></script>
+<script src="./weather-advice.js"></script>
 <script>
 "use strict";
 /* ================= 遛狗吧 ================= */
@@ -685,8 +686,8 @@ let lastWX = null;
 async function loadWeather(){
   try{
     const u = `https://api.open-meteo.com/v1/forecast?latitude=${HOME.lat}&longitude=${HOME.lon}` +
-      `&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,wind_speed_10m,uv_index,dew_point_2m` +
-      `&hourly=precipitation,precipitation_probability,weather_code,soil_moisture_0_to_1cm,temperature_2m,uv_index,wind_speed_10m` +
+      `&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,cloud_cover,shortwave_radiation,wind_speed_10m,wind_gusts_10m,uv_index,dew_point_2m` +
+      `&hourly=precipitation,precipitation_probability,weather_code,soil_moisture_0_to_1cm,temperature_2m,apparent_temperature,cloud_cover,shortwave_radiation,uv_index,wind_speed_10m,wind_gusts_10m` +
       `&daily=sunrise,sunset&forecast_days=2&past_hours=12&forecast_hours=24&timezone=auto`;
     const d = await (await fetch(u)).json();
     lastWX = d;
@@ -706,6 +707,7 @@ function wmo(c){ return WMO[c] || ["🌡","未知天气"]; }
 function renderWeather(d){
   const c = d.current, H = d.hourly;
   const now = new Date(c.time).getTime();
+  const walkComfort = LGBWeatherAdvice.outdoorComfort(c);
   const idx = H.time.map(t=>new Date(t).getTime());
   // windows
   let past3=0, past6=0, rain12=0, next3=0, nextProb=0, soil=null, hsr=99, fogRecent=false;
@@ -727,9 +729,11 @@ function renderWeather(d){
 
   const [em, desc] = wmo(c.weather_code);
   $("wxEmoji").textContent = (c.is_day===0 && c.weather_code<=1) ? "🌙" : em;
-  $("wxTemp").textContent = Math.round(c.temperature_2m);
-  $("wxFeel").textContent = ` 体感 ${Math.round(c.apparent_temperature)}°`;
-  $("wxDesc").innerHTML = `${desc}<br>💧湿度 ${c.relative_humidity_2m}% · 🍃 ${Math.round(c.wind_speed_10m)} km/h`;
+  $("wxTemp").textContent = `≈${Math.round(c.temperature_2m)}`;
+  $("wxFeel").textContent = ` 模型体感 ${Math.round(c.apparent_temperature)}° · 遛狗环境约 ${Math.round(walkComfort.value)}°`;
+  const gustTxt = c.wind_gusts_10m >= 30 ? `，阵风 ${Math.round(c.wind_gusts_10m)}` : "";
+  const updated = new Date(c.time).toLocaleTimeString("zh-CN",{hour:"2-digit",minute:"2-digit",hour12:false});
+  $("wxDesc").innerHTML = `${desc}<br>💧湿度 ${c.relative_humidity_2m}% · 🍃 ${Math.round(c.wind_speed_10m)}${gustTxt} km/h<br>📍附近天气网格估算 · ${updated} 更新`;
 
   // rain status chips
   const chips = [];
@@ -738,6 +742,10 @@ function renderWeather(d){
   else                         chips.push(["🌈 前3小时没下雨","dry"]);
   if(next3 > 0.2 || nextProb >= 50) chips.push([`☔ 未来3小时可能有雨 (${nextProb}%)`,"rain"]);
   else                         chips.push([`🌤 未来3小时应该不下 (${nextProb}%)`,"dry"]);
+  if(walkComfort.sunny && walkComfort.solarBonus>=2)
+    chips.push([`☀️ 阳光直晒明显，散步时会比阴处暖约 ${Math.round(walkComfort.solarBonus)}°`,"dry"]);
+  if(c.wind_gusts_10m>=40)
+    chips.push([`💨 阵风约 ${Math.round(c.wind_gusts_10m)} km/h，空旷处注意避风`,"wet"]);
   // ground wetness
   // 地面潮湿：路面/草坪分开判断（降雨史 + 雾 + 露水 + 土壤湿度 + 晴晒风干）
   const spread = c.temperature_2m - (c.dew_point_2m ?? -99);   // 温度露点差
@@ -804,22 +812,15 @@ function renderWeather(d){
   });
   $("rainTl").innerHTML = tl;
 
-  // clothes advice (personalized by dog profile)
-  const shift = clothShift();                 // >0 = 更怕冷, <0 = 更怕热
-  const a = c.apparent_temperature - shift;   // 狗狗的"有效体感"
-  const windy = c.wind_speed_10m >= 28;
+  // clothes advice：气温、模型体感、晴晒、云量、风/阵风、雨和狗狗档案共同判断
   const rainy = c.precipitation>0 || next3>0.2 || nextProb>=50;
-  let dog="🐶", title="", why="";
-  if(a >= 26){ dog="🥵"; title=`太热啦，${dn}别穿衣服！`; why="注意随时补水，尽量走阴凉的路，摸摸地面别烫到肉垫。"; }
-  else if(a >= 15){ dog="🐕"; title=`${dn}不用穿衣服，轻装出发！`; why="温度刚刚好，撒欢儿的好天气。"; }
-  else if(a >= 10){ dog="👕"; title=`给${dn}穿件薄衣服`; why="有点微凉，穿件小背心刚刚好。"; }
-  else if(a >= 5){ dog="🧥"; title=`建议给${dn}穿上保暖衣`; why="挺冷的，出门前穿好再走。"; }
-  else { dog="🧣"; title=`给${dn}穿厚棉衣！速去速回`; why="非常冷，缩短遛弯时间，注意肉垫防冻。"; }
-  if(rainy){ dog="☔"; title=`建议给${dn}穿雨衣出门！`; why="现在有雨或未来3小时可能下雨，带上雨衣，回家擦干别着凉。"; }
-  else if(pawBurn){ why += " 出门前用手背贴路面7秒，觉得烫就走草地。"; }
-  else if(windy && a < 12){ why += " 今天风大，最好选挡风的衣服。"; }
-  if(shift !== 0) why += `（已按${dn}的小档案调整）`;
-  $("advDog").textContent = dog; $("advTitle").textContent = title; $("advWhy").textContent = why;
+  const clothing = LGBWeatherAdvice.clothingAdvice({
+    current:c, rainy, profile:loadProfile(), dogName:dn
+  });
+  if(pawBurn) clothing.why += " 出门前用手背贴路面7秒，觉得烫就走草地。";
+  $("advDog").textContent = clothing.dog;
+  $("advTitle").textContent = clothing.title;
+  $("advWhy").textContent = clothing.why;
 
   $("wxLoading").style.display="none"; $("wxBody").style.display="block";
 }
@@ -844,21 +845,35 @@ function renderBestWindows(d, idx, now){
     let s = 100;
     s -= (H.precipitation_probability?.[i] ?? 0) * 0.55;
     const T = H.temperature_2m[i];
-    if(T > 23) s -= (T-23)*4.5;
-    if(T < 8)  s -= (8-T)*3;
+    const day = days[H.time[i].slice(0,10)];
+    const hourlyComfort = LGBWeatherAdvice.outdoorComfort({
+      temperature_2m:T,
+      apparent_temperature:H.apparent_temperature?.[i] ?? T,
+      weather_code:H.weather_code[i],
+      is_day:day && t>=day.sr && t<=day.ss ? 1 : 0,
+      precipitation:H.precipitation[i] ?? 0,
+      cloud_cover:H.cloud_cover?.[i],
+      shortwave_radiation:H.shortwave_radiation?.[i],
+      wind_speed_10m:w,
+      wind_gusts_10m:H.wind_gusts_10m?.[i]
+    }).value;
+    if(hourlyComfort > 24) s -= (hourlyComfort-24)*4.5;
+    if(hourlyComfort < 8)  s -= (8-hourlyComfort)*3;
     const uvh = H.uv_index?.[i] ?? 0; if(uvh >= 6) s -= (uvh-5)*5;
     if(w > 25) s -= (w-25)*1.2;
-    const day = days[H.time[i].slice(0,10)];
+    const gust = H.wind_gusts_10m?.[i] ?? 0; if(gust > 45) s -= (gust-45)*.7;
     if(day && (t < day.sr || t > day.ss)) s -= 10;   // 天黑扣分
-    cand.push({t, hr, s, day: dt.getDate(), sunny: (H.weather_code[i] ?? 99) <= 1});
+    const sunny=(H.weather_code[i] ?? 99)<=1 && (H.cloud_cover?.[i] ?? 0)<=45;
+    if(sunny) s += 8;
+    cand.push({t, hr, s, day: dt.getDate(), sunny});
   });
   const wins = [];
   for(let k=0;k<cand.length-1;k++)
     if(cand[k+1].t - cand[k].t === 3600000)
       wins.push({t:cand[k].t, hr:cand[k].hr, day:cand[k].day,
         s:(cand[k].s+cand[k+1].s)/2, sunny: cand[k].sunny && cand[k+1].sunny});
-  // 排序优先级：☀️晴天时段永远排最前，同类内再按舒适度分
-  wins.sort((x,y)=> (y.sunny - x.sunny) || (y.s - x.s));
+  // 晴天是加分项，但不再凌驾于温度、风、阵风、降雨和 UV 之上
+  wins.sort((x,y)=> y.s - x.s);
   const el = $("bestWin");
   if(!wins.length){
     el.innerHTML = "🕐 未来 18 小时找不到不淋雨、不吹大风的完整时段 😿<br><span style='color:var(--ink2)'>装备备好，瞅准天气的空档速去速回吧</span>";
@@ -1364,12 +1379,6 @@ function loadProfile(){
   try{ return JSON.parse(localStorage.getItem(PKEY)); }catch(e){ return null; }
 }
 function dogName(){ const p = loadProfile(); return (p?.name || "").trim() || "狗狗"; }
-function clothShift(){
-  const p = loadProfile(); if(!p) return 0;
-  return ({small:2, medium:0, large:-1}[p.size] ?? 0) +
-         ({short:3, long:0, double:-4}[p.coat] ?? 0) +
-         ({puppy:2, adult:0, senior:3}[p.age] ?? 0);
-}
 function openModal(id){ $(id).classList.add("open"); }
 document.querySelectorAll(".modal").forEach(m=>{
   m.addEventListener("click", e=>{
